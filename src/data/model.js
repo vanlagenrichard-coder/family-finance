@@ -1,4 +1,3 @@
-// src/data/model.js
 export const STORAGE_KEY = "family_finance_app_data";
 
 export const DEFAULT_SETTINGS = {
@@ -7,21 +6,21 @@ export const DEFAULT_SETTINGS = {
     bills: 0.55,
     savings: 0.1,
     giving: 0.05,
-    spending: 0.3
+    spending: 0.3,
   },
   step2Split: {
     family: 0.55,
     wife: 0.15,
     me: 0.15,
-    kids: 0.15
+    kids: 0.15,
   },
   subBucketSplits: {
     savings: {
       holiday: 0.5,
       emergency: 0.2,
-      newCar: 0.3
-    }
-  }
+      newCar: 0.3,
+    },
+  },
 };
 
 export const DEFAULT_BUCKETS = {
@@ -31,64 +30,85 @@ export const DEFAULT_BUCKETS = {
   family: 0,
   wife: 0,
   me: 0,
-  kids: 0
+  kids: 0,
 };
 
 export const DEFAULT_SUB_BUCKETS = {
   savings: {
     holiday: 0,
     emergency: 0,
-    newCar: 0
-  }
+    newCar: 0,
+  },
 };
 
 export function createDefaultAppData() {
   return {
-    settings: structuredClone(DEFAULT_SETTINGS),
-    buckets: structuredClone(DEFAULT_BUCKETS),
-    subBuckets: structuredClone(DEFAULT_SUB_BUCKETS),
+    settings: {
+      ...DEFAULT_SETTINGS,
+    },
+    buckets: {
+      ...DEFAULT_BUCKETS,
+    },
+    subBuckets: {
+      ...DEFAULT_SUB_BUCKETS,
+    },
     transactions: [],
-    paychecks: []
+    paychecks: [],
+    setup: null,
+  };
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function safeObject(value, fallback = {}) {
+  return isPlainObject(value) ? value : fallback;
+}
+
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function sanitizeSettings(settings) {
+  const safeSettings = safeObject(settings);
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...safeSettings,
+    step1Split: {
+      ...DEFAULT_SETTINGS.step1Split,
+      ...safeObject(safeSettings.step1Split),
+    },
+    step2Split: {
+      ...DEFAULT_SETTINGS.step2Split,
+      ...safeObject(safeSettings.step2Split),
+    },
+    subBucketSplits: {
+      ...DEFAULT_SETTINGS.subBucketSplits,
+      ...safeObject(safeSettings.subBucketSplits),
+    },
+    setup: safeSettings.setup ?? null,
   };
 }
 
 export function sanitizeAppData(data) {
-  const fallback = createDefaultAppData();
-
-  if (!data || typeof data !== "object") {
-    return fallback;
-  }
+  const safeData = safeObject(data);
+  const defaultData = createDefaultAppData();
 
   return {
-    settings: {
-      ...fallback.settings,
-      ...(data.settings || {}),
-      step1Split: {
-        ...fallback.settings.step1Split,
-        ...(data.settings?.step1Split || {})
-      },
-      step2Split: {
-        ...fallback.settings.step2Split,
-        ...(data.settings?.step2Split || {})
-      },
-      subBucketSplits: {
-        savings: {
-          ...fallback.settings.subBucketSplits.savings,
-          ...(data.settings?.subBucketSplits?.savings || {})
-        }
-      }
-    },
+    ...safeData,
+    settings: sanitizeSettings(safeData.settings),
     buckets: {
-      ...fallback.buckets,
-      ...(data.buckets || {})
+      ...DEFAULT_BUCKETS,
+      ...safeObject(safeData.buckets),
     },
     subBuckets: {
-      savings: {
-        ...fallback.subBuckets.savings,
-        ...(data.subBuckets?.savings || {})
-      }
+      ...DEFAULT_SUB_BUCKETS,
+      ...safeObject(safeData.subBuckets),
     },
-    transactions: Array.isArray(data.transactions) ? data.transactions : [],
-    paychecks: Array.isArray(data.paychecks) ? data.paychecks : []
+    transactions: safeArray(safeData.transactions),
+    paychecks: safeArray(safeData.paychecks),
+    setup: safeData.setup ?? safeData.settings?.setup ?? defaultData.setup,
   };
 }

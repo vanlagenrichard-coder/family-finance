@@ -15,128 +15,17 @@ const DEFAULT_SETUP = {
       archived: false,
       fixed: true,
       subBuckets: [
-        {
-          id: "mortgage",
-          name: "Mortgage",
-          percent: 45,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 3,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "natural-gas",
-          name: "Natural Gas",
-          percent: 5,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 2,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "hydro",
-          name: "Hydro",
-          percent: 5,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 2,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "house-insurance",
-          name: "House Insurance",
-          percent: 5,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 2,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "property-tax",
-          name: "Property Tax",
-          percent: 10,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "yearly",
-          reserveMonths: 12,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "car-insurance",
-          name: "Car Insurance",
-          percent: 8,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 2,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "internet",
-          name: "Internet",
-          percent: 5,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 1,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "phone",
-          name: "Phone",
-          percent: 5,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 1,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "bank-fee",
-          name: "Bank Fee",
-          percent: 1,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 1,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "netflix",
-          name: "Netflix",
-          percent: 1,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 1,
-          reserveGoal: 0,
-          archived: false,
-        },
-        {
-          id: "bills-buffer",
-          name: "Bills Buffer",
-          percent: 10,
-          monthlyTarget: 0,
-          dueDate: "",
-          frequency: "monthly",
-          reserveMonths: 0,
-          reserveGoal: 0,
-          archived: false,
-          isBuffer: true,
-        },
+        { id: "mortgage", name: "Mortgage", percent: 45, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 3, reserveGoal: 0, archived: false },
+        { id: "natural-gas", name: "Natural Gas", percent: 5, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 2, reserveGoal: 0, archived: false },
+        { id: "hydro", name: "Hydro", percent: 5, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 2, reserveGoal: 0, archived: false },
+        { id: "house-insurance", name: "House Insurance", percent: 5, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 2, reserveGoal: 0, archived: false },
+        { id: "property-tax", name: "Property Tax", percent: 10, monthlyTarget: 0, dueDate: "", frequency: "yearly", reserveMonths: 12, reserveGoal: 0, archived: false },
+        { id: "car-insurance", name: "Car Insurance", percent: 8, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 2, reserveGoal: 0, archived: false },
+        { id: "internet", name: "Internet", percent: 5, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 1, reserveGoal: 0, archived: false },
+        { id: "phone", name: "Phone", percent: 5, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 1, reserveGoal: 0, archived: false },
+        { id: "bank-fee", name: "Bank Fee", percent: 1, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 1, reserveGoal: 0, archived: false },
+        { id: "netflix", name: "Netflix", percent: 1, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 1, reserveGoal: 0, archived: false },
+        { id: "bills-buffer", name: "Bills Buffer", percent: 10, monthlyTarget: 0, dueDate: "", frequency: "monthly", reserveMonths: 0, reserveGoal: 0, archived: false, isBuffer: true },
       ],
     },
     savings: {
@@ -153,9 +42,7 @@ const DEFAULT_SETUP = {
       name: "Giving",
       archived: false,
       fixed: true,
-      subBuckets: [
-        { id: "church", name: "Church", percent: 100, archived: false },
-      ],
+      subBuckets: [{ id: "church", name: "Church", percent: 100, archived: false }],
     },
     spending: {
       name: "Spending",
@@ -173,34 +60,10 @@ const DEFAULT_SETUP = {
       archived: false,
       fixed: true,
       subBuckets: [
-        {
-          id: "private-school",
-          name: "Private School",
-          targetAmount: 0,
-          targetDate: "",
-          archived: false,
-        },
-        {
-          id: "renovation",
-          name: "Renovation",
-          targetAmount: 0,
-          targetDate: "",
-          archived: false,
-        },
-        {
-          id: "vacation",
-          name: "Vacation",
-          targetAmount: 0,
-          targetDate: "",
-          archived: false,
-        },
-        {
-          id: "golf-simulator",
-          name: "Golf Simulator",
-          targetAmount: 0,
-          targetDate: "",
-          archived: false,
-        },
+        { id: "private-school", name: "Private School", targetAmount: 0, targetDate: "", archived: false },
+        { id: "renovation", name: "Renovation", targetAmount: 0, targetDate: "", archived: false },
+        { id: "vacation", name: "Vacation", targetAmount: 0, targetDate: "", archived: false },
+        { id: "golf-simulator", name: "Golf Simulator", targetAmount: 0, targetDate: "", archived: false },
       ],
     },
   },
@@ -222,6 +85,7 @@ const DEFAULT_SETUP = {
 };
 
 const PERCENT_GROUP_IDS = ["bills", "savings", "giving", "spending"];
+const FIXED_GROUP_IDS = ["bills", "savings", "giving", "spending", "goals"];
 
 function numberValue(value) {
   if (value === "" || value === null || value === undefined) return 0;
@@ -249,38 +113,11 @@ function activeItems(items) {
 }
 
 function totalPercent(items) {
-  return activeItems(items).reduce(
-    (sum, item) => sum + numberValue(item.percent),
-    0
-  );
+  return activeItems(items).reduce((sum, item) => sum + numberValue(item.percent), 0);
 }
 
 function isValidTotal(total) {
   return Math.abs(total - 100) < 0.01;
-}
-
-function monthsUntil(dateValue) {
-  if (!dateValue) return 0;
-
-  const today = new Date();
-  const target = new Date(`${dateValue}T00:00:00`);
-
-  if (Number.isNaN(target.getTime()) || target <= today) return 0;
-
-  const yearDiff = target.getFullYear() - today.getFullYear();
-  const monthDiff = target.getMonth() - today.getMonth();
-  const months = yearDiff * 12 + monthDiff;
-
-  return Math.max(months, 1);
-}
-
-function projectedMonthlyNeeded(goal) {
-  const targetAmount = numberValue(goal.targetAmount);
-  const months = monthsUntil(goal.targetDate);
-
-  if (!targetAmount || !months) return 0;
-
-  return targetAmount / months;
 }
 
 function mergeArrayById(defaultItems, savedItems) {
@@ -303,55 +140,48 @@ function mergeArrayById(defaultItems, savedItems) {
   return [...mergedDefaults, ...customItems];
 }
 
-function normalizeBillSubBucketForEditing(subBucket) {
+function normalizeBillForEditing(item) {
   return {
-    id: subBucket.id || makeId(subBucket.name),
-    name: textValue(subBucket.name || "Bill"),
-    percent: textValue(subBucket.percent),
-    monthlyTarget: textValue(subBucket.monthlyTarget),
-    dueDate: textValue(subBucket.dueDate),
-    frequency:
-      subBucket.frequency === "weekly" ||
-      subBucket.frequency === "yearly" ||
-      subBucket.frequency === "monthly"
-        ? subBucket.frequency
-        : "monthly",
-    reserveMonths: textValue(subBucket.reserveMonths),
-    reserveGoal: textValue(subBucket.reserveGoal),
-    archived: Boolean(subBucket.archived),
-    isBuffer: Boolean(subBucket.isBuffer),
+    id: item.id || makeId(item.name),
+    name: textValue(item.name || "Bill"),
+    percent: textValue(item.percent),
+    monthlyTarget: textValue(item.monthlyTarget),
+    dueDate: textValue(item.dueDate),
+    frequency: ["weekly", "monthly", "yearly"].includes(item.frequency) ? item.frequency : "monthly",
+    reserveMonths: textValue(item.reserveMonths),
+    reserveGoal: textValue(item.reserveGoal),
+    archived: Boolean(item.archived),
+    isBuffer: Boolean(item.isBuffer),
   };
 }
 
-function normalizePercentSubBucketForEditing(subBucket) {
+function normalizePercentForEditing(item) {
   return {
-    id: subBucket.id || makeId(subBucket.name),
-    name: textValue(subBucket.name || "Sub-Bucket"),
-    percent: textValue(subBucket.percent),
-    archived: Boolean(subBucket.archived),
+    id: item.id || makeId(item.name),
+    name: textValue(item.name || "Sub-Bucket"),
+    percent: textValue(item.percent),
+    archived: Boolean(item.archived),
   };
 }
 
-function normalizeGoalForEditing(goal) {
+function normalizeGoalForEditing(item) {
   return {
-    id: goal.id || makeId(goal.name),
-    name: textValue(goal.name || "Goal"),
-    targetAmount: textValue(goal.targetAmount),
-    targetDate: textValue(goal.targetDate),
-    archived: Boolean(goal.archived),
+    id: item.id || makeId(item.name),
+    name: textValue(item.name || "Goal"),
+    targetAmount: textValue(item.targetAmount),
+    targetDate: textValue(item.targetDate),
+    archived: Boolean(item.archived),
   };
 }
 
 function normalizeGroupForEditing(groupId, group) {
   const safeGroup = group || {};
-  const safeSubBuckets = Array.isArray(safeGroup.subBuckets)
-    ? safeGroup.subBuckets
-    : [];
+  const safeSubBuckets = Array.isArray(safeGroup.subBuckets) ? safeGroup.subBuckets : [];
 
-  let subBuckets = safeSubBuckets.map(normalizePercentSubBucketForEditing);
+  let subBuckets = safeSubBuckets.map(normalizePercentForEditing);
 
   if (groupId === "bills") {
-    subBuckets = safeSubBuckets.map(normalizeBillSubBucketForEditing);
+    subBuckets = safeSubBuckets.map(normalizeBillForEditing);
   }
 
   if (groupId === "goals") {
@@ -361,7 +191,7 @@ function normalizeGroupForEditing(groupId, group) {
   return {
     name: textValue(safeGroup.name || DEFAULT_SETUP.bucketGroups[groupId]?.name || "Bucket"),
     archived: Boolean(safeGroup.archived),
-    fixed: Boolean(safeGroup.fixed),
+    fixed: FIXED_GROUP_IDS.includes(groupId) || Boolean(safeGroup.fixed),
     subBuckets,
   };
 }
@@ -372,10 +202,7 @@ function mergeBucketGroups(savedGroups) {
 
   Object.entries(DEFAULT_SETUP.bucketGroups).forEach(([groupId, defaultGroup]) => {
     const savedGroup = safeSavedGroups[groupId] || {};
-    const mergedSubBuckets = mergeArrayById(
-      defaultGroup.subBuckets,
-      savedGroup.subBuckets
-    );
+    const mergedSubBuckets = mergeArrayById(defaultGroup.subBuckets, savedGroup.subBuckets);
 
     mergedGroups[groupId] = normalizeGroupForEditing(groupId, {
       ...defaultGroup,
@@ -393,106 +220,105 @@ function mergeBucketGroups(savedGroups) {
   return mergedGroups;
 }
 
-function mergeSetup(existingSetup) {
-  const savedSetup = existingSetup || {};
-  const savedIncomePlanning = savedSetup.incomePlanning || {};
-  const savedExtraIncomeRule = savedIncomePlanning.extraIncomeRule || {};
+function getSavedSetup(data) {
+  if (data && data.setup) return data.setup;
+  if (data && data.settings && data.settings.setup) return data.settings.setup;
+  return null;
+}
 
-  const paycheckSplit = mergeArrayById(
-    DEFAULT_SETUP.paycheckSplit,
-    savedSetup.paycheckSplit
-  )
-    .filter((item) => item.id !== "goals")
-    .map((item) => ({
-      id: item.id || makeId(item.name),
-      name: textValue(item.name || "Bucket"),
-      percent: textValue(item.percent),
-      archived: Boolean(item.archived),
-    }));
-
-  const extraSplit = mergeArrayById(
-    DEFAULT_SETUP.incomePlanning.extraIncomeRule.extraSplit,
-    savedExtraIncomeRule.extraSplit
-  ).map((item) => ({
-    id: item.id || makeId(item.name),
-    name: textValue(item.name || "Bucket"),
-    percent: textValue(item.percent),
-    archived: Boolean(item.archived),
-  }));
+function mergeSetup(savedSetup) {
+  const safeSetup = savedSetup || {};
+  const safeIncomePlanning = safeSetup.incomePlanning || {};
+  const safeExtraIncomeRule = safeIncomePlanning.extraIncomeRule || {};
 
   return {
-    paycheckSplit,
-    bucketGroups: mergeBucketGroups(savedSetup.bucketGroups),
+    paycheckSplit: mergeArrayById(DEFAULT_SETUP.paycheckSplit, safeSetup.paycheckSplit)
+      .filter((item) => item.id !== "goals")
+      .map((item) => ({
+        id: item.id || makeId(item.name),
+        name: textValue(item.name || "Bucket"),
+        percent: textValue(item.percent),
+        archived: Boolean(item.archived),
+      })),
+    bucketGroups: mergeBucketGroups(safeSetup.bucketGroups),
     incomePlanning: {
       baselineWorkChequeAmount: textValue(
-        savedIncomePlanning.baselineWorkChequeAmount ??
+        safeIncomePlanning.baselineWorkChequeAmount ??
           DEFAULT_SETUP.incomePlanning.baselineWorkChequeAmount
       ),
       babyBonusExpectedAmount: textValue(
-        savedIncomePlanning.babyBonusExpectedAmount ??
+        safeIncomePlanning.babyBonusExpectedAmount ??
           DEFAULT_SETUP.incomePlanning.babyBonusExpectedAmount
       ),
       extraIncomeRule: {
         enabled:
-          typeof savedExtraIncomeRule.enabled === "boolean"
-            ? savedExtraIncomeRule.enabled
+          typeof safeExtraIncomeRule.enabled === "boolean"
+            ? safeExtraIncomeRule.enabled
             : DEFAULT_SETUP.incomePlanning.extraIncomeRule.enabled,
         normalSplitLimit: textValue(
-          savedExtraIncomeRule.normalSplitLimit ??
+          safeExtraIncomeRule.normalSplitLimit ??
             DEFAULT_SETUP.incomePlanning.extraIncomeRule.normalSplitLimit
         ),
-        extraSplit,
+        extraSplit: mergeArrayById(
+          DEFAULT_SETUP.incomePlanning.extraIncomeRule.extraSplit,
+          safeExtraIncomeRule.extraSplit
+        ).map((item) => ({
+          id: item.id || makeId(item.name),
+          name: textValue(item.name || "Bucket"),
+          percent: textValue(item.percent),
+          archived: Boolean(item.archived),
+        })),
       },
     },
   };
 }
 
-function normalizeSetupForSave(setup) {
+function setupForSave(setup) {
   const bucketGroups = {};
 
   Object.entries(setup.bucketGroups || {}).forEach(([groupId, group]) => {
     bucketGroups[groupId] = {
       name: group.name || "Bucket",
       archived: Boolean(group.archived),
-      fixed: Boolean(group.fixed),
-      subBuckets: activeItems(group.subBuckets).map((subBucket) => {
+      fixed: FIXED_GROUP_IDS.includes(groupId) || Boolean(group.fixed),
+      subBuckets: (Array.isArray(group.subBuckets) ? group.subBuckets : []).map((item) => {
         if (groupId === "bills") {
           return {
-            ...subBucket,
-            name: subBucket.name || "Bill",
-            percent: numberValue(subBucket.percent),
-            monthlyTarget: numberValue(subBucket.monthlyTarget),
-            dueDate: subBucket.dueDate || "",
-            frequency: subBucket.frequency || "monthly",
-            reserveMonths: numberValue(subBucket.reserveMonths),
-            reserveGoal: numberValue(subBucket.reserveGoal),
-            archived: Boolean(subBucket.archived),
-            isBuffer: Boolean(subBucket.isBuffer),
+            ...item,
+            name: item.name || "Bill",
+            percent: numberValue(item.percent),
+            monthlyTarget: numberValue(item.monthlyTarget),
+            dueDate: item.dueDate || "",
+            frequency: item.frequency || "monthly",
+            reserveMonths: numberValue(item.reserveMonths),
+            reserveGoal: numberValue(item.reserveGoal),
+            archived: Boolean(item.archived),
+            isBuffer: Boolean(item.isBuffer),
           };
         }
 
         if (groupId === "goals") {
           return {
-            ...subBucket,
-            name: subBucket.name || "Goal",
-            targetAmount: numberValue(subBucket.targetAmount),
-            targetDate: subBucket.targetDate || "",
-            archived: Boolean(subBucket.archived),
+            ...item,
+            name: item.name || "Goal",
+            targetAmount: numberValue(item.targetAmount),
+            targetDate: item.targetDate || "",
+            archived: Boolean(item.archived),
           };
         }
 
         return {
-          ...subBucket,
-          name: subBucket.name || "Sub-Bucket",
-          percent: numberValue(subBucket.percent),
-          archived: Boolean(subBucket.archived),
+          ...item,
+          name: item.name || "Sub-Bucket",
+          percent: numberValue(item.percent),
+          archived: Boolean(item.archived),
         };
       }),
     };
   });
 
   return {
-    paycheckSplit: activeItems(setup.paycheckSplit)
+    paycheckSplit: (Array.isArray(setup.paycheckSplit) ? setup.paycheckSplit : [])
       .filter((item) => item.id !== "goals")
       .map((item) => ({
         ...item,
@@ -502,19 +328,15 @@ function normalizeSetupForSave(setup) {
       })),
     bucketGroups,
     incomePlanning: {
-      baselineWorkChequeAmount: numberValue(
-        setup.incomePlanning?.baselineWorkChequeAmount
-      ),
-      babyBonusExpectedAmount: numberValue(
-        setup.incomePlanning?.babyBonusExpectedAmount
-      ),
+      baselineWorkChequeAmount: numberValue(setup.incomePlanning?.baselineWorkChequeAmount),
+      babyBonusExpectedAmount: numberValue(setup.incomePlanning?.babyBonusExpectedAmount),
       extraIncomeRule: {
         enabled: Boolean(setup.incomePlanning?.extraIncomeRule?.enabled),
-        normalSplitLimit: numberValue(
-          setup.incomePlanning?.extraIncomeRule?.normalSplitLimit
-        ),
-        extraSplit: activeItems(
-          setup.incomePlanning?.extraIncomeRule?.extraSplit
+        normalSplitLimit: numberValue(setup.incomePlanning?.extraIncomeRule?.normalSplitLimit),
+        extraSplit: (
+          Array.isArray(setup.incomePlanning?.extraIncomeRule?.extraSplit)
+            ? setup.incomePlanning.extraIncomeRule.extraSplit
+            : []
         ).map((item) => ({
           ...item,
           name: item.name || "Bucket",
@@ -526,10 +348,41 @@ function normalizeSetupForSave(setup) {
   };
 }
 
+function saveSetupToStorage(setup) {
+  const currentData = loadData() || {};
+  const cleanSetup = setupForSave(setup);
+
+  saveData({
+    ...currentData,
+    setup: cleanSetup,
+  });
+}
+
+function monthsUntil(dateValue) {
+  if (!dateValue) return 0;
+
+  const today = new Date();
+  const target = new Date(`${dateValue}T00:00:00`);
+
+  if (Number.isNaN(target.getTime()) || target <= today) return 0;
+
+  return Math.max(
+    (target.getFullYear() - today.getFullYear()) * 12 + target.getMonth() - today.getMonth(),
+    1
+  );
+}
+
+function projectedMonthlyNeeded(goal) {
+  const targetAmount = numberValue(goal.targetAmount);
+  const months = monthsUntil(goal.targetDate);
+
+  if (!targetAmount || !months) return 0;
+
+  return targetAmount / months;
+}
+
 function TotalBadge({ total, required = true }) {
-  if (!required) {
-    return <span className="total-badge neutral">No fixed %</span>;
-  }
+  if (!required) return <span className="total-badge neutral">No fixed %</span>;
 
   const valid = isValidTotal(total);
 
@@ -553,25 +406,26 @@ function SectionCard({ title, total, requiredTotal = true, children }) {
 }
 
 export default function Settings() {
-  const [setup, setSetup] = useState(() => mergeSetup(DEFAULT_SETUP));
+  const [setup, setSetup] = useState(() => mergeSetup(null));
   const [newBucketName, setNewBucketName] = useState("");
   const [newSubBucketNames, setNewSubBucketNames] = useState({});
   const [saveStatus, setSaveStatus] = useState("Saved");
   const didLoadRef = useRef(false);
   const saveTimerRef = useRef(null);
+  const setupRef = useRef(setup);
 
   useEffect(() => {
-    const data = loadData();
-    const mergedSetup = mergeSetup(data?.setup);
+    setupRef.current = setup;
+  }, [setup]);
+
+  useEffect(() => {
+    const data = loadData() || {};
+    const savedSetup = getSavedSetup(data);
+    const mergedSetup = mergeSetup(savedSetup);
+
     setSetup(mergedSetup);
-
-    if (!data?.setup) {
-      saveData({
-        ...(data || {}),
-        setup: normalizeSetupForSave(mergedSetup),
-      });
-    }
-
+    setupRef.current = mergedSetup;
+    saveSetupToStorage(mergedSetup);
     didLoadRef.current = true;
   }, []);
 
@@ -585,15 +439,9 @@ export default function Settings() {
     }
 
     saveTimerRef.current = window.setTimeout(() => {
-      const cleanSetup = normalizeSetupForSave(setup);
-
-      updateData((currentData) => ({
-        ...(currentData || {}),
-        setup: cleanSetup,
-      }));
-
+      saveSetupToStorage(setupRef.current);
       setSaveStatus("Saved");
-    }, 500);
+    }, 300);
 
     return () => {
       if (saveTimerRef.current) {
@@ -601,6 +449,16 @@ export default function Settings() {
       }
     };
   }, [setup]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+
+      saveSetupToStorage(setupRef.current);
+    };
+  }, []);
 
   const validation = useMemo(() => {
     const groupTotals = {};
@@ -615,31 +473,18 @@ export default function Settings() {
 
     const paycheckTotal = totalPercent(setup.paycheckSplit);
 
-    const allGroupTotalsValid = Object.values(groupTotals).every((total) =>
-      isValidTotal(total)
-    );
-
     return {
       paycheckTotal,
       groupTotals,
-      valid: isValidTotal(paycheckTotal) && allGroupTotalsValid,
+      valid:
+        isValidTotal(paycheckTotal) &&
+        Object.values(groupTotals).every((total) => isValidTotal(total)),
     };
   }, [setup]);
 
-  const activeGroups = Object.entries(setup.bucketGroups || {}).filter(
-    ([, group]) => !group.archived
-  );
-
-  const activePercentGroups = activeGroups.filter(([groupId]) =>
-    PERCENT_GROUP_IDS.includes(groupId)
-  );
-
-  const goalsGroup = setup.bucketGroups?.goals || {
-    name: "Goals",
-    archived: false,
-    fixed: true,
-    subBuckets: [],
-  };
+  const activeGroups = Object.entries(setup.bucketGroups || {}).filter(([, group]) => !group.archived);
+  const activePercentGroups = activeGroups.filter(([groupId]) => PERCENT_GROUP_IDS.includes(groupId));
+  const goalsGroup = setup.bucketGroups?.goals || DEFAULT_SETUP.bucketGroups.goals;
 
   function updatePaycheckItem(id, field, value) {
     setSetup((current) => ({
@@ -657,8 +502,8 @@ export default function Settings() {
         ...current.incomePlanning,
         extraIncomeRule: {
           ...current.incomePlanning.extraIncomeRule,
-          extraSplit: current.incomePlanning.extraIncomeRule.extraSplit.map(
-            (item) => (item.id === id ? { ...item, percent: value } : item)
+          extraSplit: current.incomePlanning.extraIncomeRule.extraSplit.map((item) =>
+            item.id === id ? { ...item, percent: value } : item
           ),
         },
       },
@@ -682,8 +527,8 @@ export default function Settings() {
         ...current.incomePlanning,
         extraIncomeRule: {
           ...current.incomePlanning.extraIncomeRule,
-          extraSplit: current.incomePlanning.extraIncomeRule.extraSplit.map(
-            (item) => (item.id === groupId ? { ...item, name: value } : item)
+          extraSplit: current.incomePlanning.extraIncomeRule.extraSplit.map((item) =>
+            item.id === groupId ? { ...item, name: value } : item
           ),
         },
       },
@@ -691,15 +536,7 @@ export default function Settings() {
   }
 
   function archiveGroup(groupId) {
-    if (
-      groupId === "bills" ||
-      groupId === "savings" ||
-      groupId === "giving" ||
-      groupId === "spending" ||
-      groupId === "goals"
-    ) {
-      return;
-    }
+    if (FIXED_GROUP_IDS.includes(groupId)) return;
 
     setSetup((current) => ({
       ...current,
@@ -708,21 +545,6 @@ export default function Settings() {
         [groupId]: {
           ...current.bucketGroups[groupId],
           archived: true,
-        },
-      },
-      paycheckSplit: current.paycheckSplit.map((item) =>
-        item.id === groupId ? { ...item, archived: true, percent: "0" } : item
-      ),
-      incomePlanning: {
-        ...current.incomePlanning,
-        extraIncomeRule: {
-          ...current.incomePlanning.extraIncomeRule,
-          extraSplit: current.incomePlanning.extraIncomeRule.extraSplit.map(
-            (item) =>
-              item.id === groupId
-                ? { ...item, archived: true, percent: "0" }
-                : item
-          ),
         },
       },
     }));
@@ -765,12 +587,8 @@ export default function Settings() {
         ...current.bucketGroups,
         [groupId]: {
           ...current.bucketGroups[groupId],
-          subBuckets: activeItems(
-            current.bucketGroups[groupId]?.subBuckets || []
-          ).map((subBucket) =>
-            subBucket.id === subBucketId
-              ? { ...subBucket, [field]: value }
-              : subBucket
+          subBuckets: (current.bucketGroups[groupId]?.subBuckets || []).map((item) =>
+            item.id === subBucketId ? { ...item, [field]: value } : item
           ),
         },
       },
@@ -784,12 +602,8 @@ export default function Settings() {
         ...current.bucketGroups,
         [groupId]: {
           ...current.bucketGroups[groupId],
-          subBuckets: activeItems(
-            current.bucketGroups[groupId]?.subBuckets || []
-          ).map((subBucket) =>
-            subBucket.id === subBucketId
-              ? { ...subBucket, archived: true, percent: "0" }
-              : subBucket
+          subBuckets: (current.bucketGroups[groupId]?.subBuckets || []).map((item) =>
+            item.id === subBucketId ? { ...item, archived: true, percent: "0" } : item
           ),
         },
       },
@@ -802,9 +616,6 @@ export default function Settings() {
     if (!name) return;
 
     setSetup((current) => {
-      const isBillsGroup = groupId === "bills";
-      const isGoalsGroup = groupId === "goals";
-
       let newSubBucket = {
         id: makeId(name),
         name,
@@ -812,7 +623,7 @@ export default function Settings() {
         archived: false,
       };
 
-      if (isBillsGroup) {
+      if (groupId === "bills") {
         newSubBucket = {
           id: makeId(name),
           name,
@@ -827,7 +638,7 @@ export default function Settings() {
         };
       }
 
-      if (isGoalsGroup) {
+      if (groupId === "goals") {
         newSubBucket = {
           id: makeId(name),
           name,
@@ -843,10 +654,7 @@ export default function Settings() {
           ...current.bucketGroups,
           [groupId]: {
             ...current.bucketGroups[groupId],
-            subBuckets: [
-              ...activeItems(current.bucketGroups[groupId]?.subBuckets || []),
-              newSubBucket,
-            ],
+            subBuckets: [...(current.bucketGroups[groupId]?.subBuckets || []), newSubBucket],
           },
         },
       };
@@ -1188,9 +996,7 @@ export default function Settings() {
             <div className="row" key={item.id}>
               <input
                 value={item.name || ""}
-                onChange={(event) =>
-                  updateGroupName(item.id, event.target.value)
-                }
+                onChange={(event) => updateGroupName(item.id, event.target.value)}
                 aria-label={`${item.name} name`}
               />
               <input
@@ -1214,9 +1020,7 @@ export default function Settings() {
             <div className="bucket-row" key={groupId}>
               <input
                 value={group.name || ""}
-                onChange={(event) =>
-                  updateGroupName(groupId, event.target.value)
-                }
+                onChange={(event) => updateGroupName(groupId, event.target.value)}
                 disabled={Boolean(group.fixed)}
                 aria-label={`${group.name} bucket name`}
               />
@@ -1258,12 +1062,7 @@ export default function Settings() {
                       <input
                         value={subBucket.name || ""}
                         onChange={(event) =>
-                          updateSubBucket(
-                            groupId,
-                            subBucket.id,
-                            "name",
-                            event.target.value
-                          )
+                          updateSubBucket(groupId, subBucket.id, "name", event.target.value)
                         }
                         aria-label={`${subBucket.name} name`}
                       />
@@ -1276,12 +1075,7 @@ export default function Settings() {
                           type="number"
                           value={subBucket.percent ?? ""}
                           onChange={(event) =>
-                            updateSubBucket(
-                              groupId,
-                              subBucket.id,
-                              "percent",
-                              event.target.value
-                            )
+                            updateSubBucket(groupId, subBucket.id, "percent", event.target.value)
                           }
                           aria-label={`${subBucket.name} percent`}
                         />
@@ -1293,12 +1087,7 @@ export default function Settings() {
                           type="number"
                           value={subBucket.monthlyTarget ?? ""}
                           onChange={(event) =>
-                            updateSubBucket(
-                              groupId,
-                              subBucket.id,
-                              "monthlyTarget",
-                              event.target.value
-                            )
+                            updateSubBucket(groupId, subBucket.id, "monthlyTarget", event.target.value)
                           }
                           aria-label={`${subBucket.name} monthly target`}
                         />
@@ -1310,12 +1099,7 @@ export default function Settings() {
                           type="date"
                           value={subBucket.dueDate || ""}
                           onChange={(event) =>
-                            updateSubBucket(
-                              groupId,
-                              subBucket.id,
-                              "dueDate",
-                              event.target.value
-                            )
+                            updateSubBucket(groupId, subBucket.id, "dueDate", event.target.value)
                           }
                           aria-label={`${subBucket.name} due date`}
                         />
@@ -1326,12 +1110,7 @@ export default function Settings() {
                         <select
                           value={subBucket.frequency || "monthly"}
                           onChange={(event) =>
-                            updateSubBucket(
-                              groupId,
-                              subBucket.id,
-                              "frequency",
-                              event.target.value
-                            )
+                            updateSubBucket(groupId, subBucket.id, "frequency", event.target.value)
                           }
                           aria-label={`${subBucket.name} frequency`}
                         >
@@ -1347,12 +1126,7 @@ export default function Settings() {
                           type="number"
                           value={subBucket.reserveMonths ?? ""}
                           onChange={(event) =>
-                            updateSubBucket(
-                              groupId,
-                              subBucket.id,
-                              "reserveMonths",
-                              event.target.value
-                            )
+                            updateSubBucket(groupId, subBucket.id, "reserveMonths", event.target.value)
                           }
                           aria-label={`${subBucket.name} reserve months`}
                         />
@@ -1364,12 +1138,7 @@ export default function Settings() {
                           type="number"
                           value={subBucket.reserveGoal ?? ""}
                           onChange={(event) =>
-                            updateSubBucket(
-                              groupId,
-                              subBucket.id,
-                              "reserveGoal",
-                              event.target.value
-                            )
+                            updateSubBucket(groupId, subBucket.id, "reserveGoal", event.target.value)
                           }
                           aria-label={`${subBucket.name} reserve goal`}
                         />
@@ -1390,12 +1159,7 @@ export default function Settings() {
                       <input
                         value={subBucket.name || ""}
                         onChange={(event) =>
-                          updateSubBucket(
-                            groupId,
-                            subBucket.id,
-                            "name",
-                            event.target.value
-                          )
+                          updateSubBucket(groupId, subBucket.id, "name", event.target.value)
                         }
                         aria-label={`${subBucket.name} name`}
                       />
@@ -1403,12 +1167,7 @@ export default function Settings() {
                         type="number"
                         value={subBucket.percent ?? ""}
                         onChange={(event) =>
-                          updateSubBucket(
-                            groupId,
-                            subBucket.id,
-                            "percent",
-                            event.target.value
-                          )
+                          updateSubBucket(groupId, subBucket.id, "percent", event.target.value)
                         }
                         aria-label={`${subBucket.name} percent`}
                       />
@@ -1453,9 +1212,9 @@ export default function Settings() {
             <h2>Bills Buffer Logic</h2>
           </div>
           <p className="subtitle">
-            Bill targets, due dates, frequency, and reserves are stored for
-            future paycheck logic. Once a bill reserve is full, overflow can go
-            to Bills Buffer / General Bills.
+            Bill targets, due dates, frequency, and reserves are stored for future
+            paycheck logic. Once a bill reserve is full, overflow can go to Bills
+            Buffer / General Bills.
           </p>
         </section>
 
@@ -1470,12 +1229,7 @@ export default function Settings() {
                   <input
                     value={goal.name || ""}
                     onChange={(event) =>
-                      updateSubBucket(
-                        "goals",
-                        goal.id,
-                        "name",
-                        event.target.value
-                      )
+                      updateSubBucket("goals", goal.id, "name", event.target.value)
                     }
                     aria-label={`${goal.name} name`}
                   />
@@ -1488,12 +1242,7 @@ export default function Settings() {
                       type="number"
                       value={goal.targetAmount ?? ""}
                       onChange={(event) =>
-                        updateSubBucket(
-                          "goals",
-                          goal.id,
-                          "targetAmount",
-                          event.target.value
-                        )
+                        updateSubBucket("goals", goal.id, "targetAmount", event.target.value)
                       }
                       aria-label={`${goal.name} target amount`}
                     />
@@ -1505,20 +1254,14 @@ export default function Settings() {
                       type="date"
                       value={goal.targetDate || ""}
                       onChange={(event) =>
-                        updateSubBucket(
-                          "goals",
-                          goal.id,
-                          "targetDate",
-                          event.target.value
-                        )
+                        updateSubBucket("goals", goal.id, "targetDate", event.target.value)
                       }
                       aria-label={`${goal.name} target date`}
                     />
                   </div>
 
                   <div className="goal-summary">
-                    Projected monthly needed: $
-                    {monthlyNeeded.toFixed(2)}
+                    Projected monthly needed: ${monthlyNeeded.toFixed(2)}
                     <br />
                     Progress: calculated from History + Balances later
                   </div>
@@ -1569,10 +1312,7 @@ export default function Settings() {
                 type="number"
                 value={setup.incomePlanning.baselineWorkChequeAmount ?? ""}
                 onChange={(event) =>
-                  updateIncomePlanning(
-                    "baselineWorkChequeAmount",
-                    event.target.value
-                  )
+                  updateIncomePlanning("baselineWorkChequeAmount", event.target.value)
                 }
               />
             </div>
@@ -1583,10 +1323,7 @@ export default function Settings() {
                 type="number"
                 value={setup.incomePlanning.babyBonusExpectedAmount ?? ""}
                 onChange={(event) =>
-                  updateIncomePlanning(
-                    "babyBonusExpectedAmount",
-                    event.target.value
-                  )
+                  updateIncomePlanning("babyBonusExpectedAmount", event.target.value)
                 }
               />
             </div>
@@ -1598,16 +1335,13 @@ export default function Settings() {
             <div>
               <h3>Extra Income Rule</h3>
               <p className="subtitle">
-                First amount uses normal split. Extra above that uses extra
-                income split.
+                First amount uses normal split. Extra above that uses extra income split.
               </p>
             </div>
             <input
               type="checkbox"
               checked={Boolean(setup.incomePlanning.extraIncomeRule.enabled)}
-              onChange={(event) =>
-                updateExtraIncomeRule("enabled", event.target.checked)
-              }
+              onChange={(event) => updateExtraIncomeRule("enabled", event.target.checked)}
               aria-label="Enable extra income rule"
             />
           </div>
@@ -1625,25 +1359,17 @@ export default function Settings() {
         </section>
 
         <SectionCard title="Extra Income Split" total={0} requiredTotal={false}>
-          {activeItems(setup.incomePlanning.extraIncomeRule.extraSplit).map(
-            (item) => (
-              <div className="row" key={item.id}>
-                <input
-                  value={item.name || ""}
-                  disabled
-                  aria-label={`${item.name} name`}
-                />
-                <input
-                  type="number"
-                  value={item.percent ?? ""}
-                  onChange={(event) =>
-                    updateExtraSplitItem(item.id, event.target.value)
-                  }
-                  aria-label={`${item.name} extra income percent`}
-                />
-              </div>
-            )
-          )}
+          {activeItems(setup.incomePlanning.extraIncomeRule.extraSplit).map((item) => (
+            <div className="row" key={item.id}>
+              <input value={item.name || ""} disabled aria-label={`${item.name} name`} />
+              <input
+                type="number"
+                value={item.percent ?? ""}
+                onChange={(event) => updateExtraSplitItem(item.id, event.target.value)}
+                aria-label={`${item.name} extra income percent`}
+              />
+            </div>
+          ))}
           <p className="helper-text">
             Extra income can fund savings, spending, bills overflow, and goals.
           </p>
