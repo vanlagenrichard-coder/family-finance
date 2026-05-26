@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadData } from "../services/storage";
 
@@ -21,24 +21,41 @@ function normalizeKey(value) {
   return normalizeText(value).toLowerCase();
 }
 
-function getTransactions(data) {
-  return Array.isArray(data?.transactions) ? data.transactions : [];
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function getSetup(data) {
   return data?.settings?.setup || data?.setup || {};
 }
 
-function getName(item) {
-  return normalizeText(item?.name || item?.label || item?.title || item?.id);
-}
-
-function getPercentValue(item) {
-  return Number(item?.percent ?? item?.percentage ?? item?.allocation ?? item?.split ?? 0);
+function getTransactions(data) {
+  return safeArray(data?.transactions);
 }
 
 function isArchived(item) {
   return Boolean(item?.archived || item?.isArchived || item?.inactive);
+}
+
+function getName(item) {
+  return normalizeText(
+    item?.name ||
+      item?.label ||
+      item?.title ||
+      item?.bucket ||
+      item?.subBucket ||
+      item?.id
+  );
+}
+
+function getPercentValue(item) {
+  return Number(
+    item?.percent ??
+      item?.percentage ??
+      item?.allocation ??
+      item?.split ??
+      0
+  );
 }
 
 function getTargetValue(item) {
@@ -46,7 +63,6 @@ function getTargetValue(item) {
     item?.targetAmount ??
       item?.target ??
       item?.monthlyTarget ??
-      item?.monthlyAmount ??
       item?.goal ??
       item?.reserveGoal ??
       0
@@ -54,46 +70,74 @@ function getTargetValue(item) {
 }
 
 function getMonthlyTarget(item) {
-  return Number(item?.monthlyTarget ?? item?.monthlyAmount ?? item?.target ?? 0);
+  return Number(
+    item?.monthlyTarget ??
+      item?.monthlyAmount ??
+      item?.target ??
+      0
+  );
 }
 
 function getYearlyTarget(item) {
-  return Number(item?.yearlyTarget ?? item?.annualTarget ?? item?.yearlyAmount ?? 0);
+  return Number(
+    item?.yearlyTarget ??
+      item?.annualTarget ??
+      item?.yearlyAmount ??
+      0
+  );
 }
 
 function getReserveGoal(item) {
-  return Number(item?.reserveGoal ?? item?.reserveTarget ?? item?.monthsReserve ?? 0);
+  return Number(
+    item?.reserveGoal ??
+      item?.reserveTarget ??
+      item?.monthsReserve ??
+      0
+  );
 }
 
 function getDueDate(item) {
-  return item?.dueDate || item?.due || item?.nextDueDate || "";
+  return (
+    item?.dueDate ||
+    item?.due ||
+    item?.nextDueDate ||
+    ""
+  );
 }
 
 function getFrequency(item) {
-  return normalizeText(item?.frequency || item?.billFrequency || item?.cadence);
+  return normalizeText(
+    item?.frequency ||
+      item?.billFrequency ||
+      item?.cadence
+  );
 }
 
 function getTargetDate(item) {
-  return item?.targetDate || item?.goalDate || "";
-}
-
-function safeArray(value) {
-  return Array.isArray(value) ? value : [];
+  return (
+    item?.targetDate ||
+    item?.goalDate ||
+    ""
+  );
 }
 
 function objectToSubBuckets(objectValue) {
-  if (!objectValue || typeof objectValue !== "object" || Array.isArray(objectValue)) {
+  if (
+    !objectValue ||
+    typeof objectValue !== "object" ||
+    Array.isArray(objectValue)
+  ) {
     return [];
   }
 
   return Object.entries(objectValue).map(([name, value]) => {
     if (value && typeof value === "object") {
       return {
-        id: value.id || name,
-        name: value.name || value.label || name,
-        percent: Number(value.percent ?? value.percentage ?? value.allocation ?? value.split ?? 0),
-        archived: Boolean(value.archived || value.isArchived || value.inactive),
         ...value,
+        id: value.id || name,
+        name: value.name || name,
+        percent: getPercentValue(value),
+        archived: isArchived(value),
       };
     }
 
@@ -107,7 +151,9 @@ function objectToSubBuckets(objectValue) {
 }
 
 function normalizeSubBuckets(bucket, setup) {
-  const directSubBuckets = safeArray(bucket?.subBuckets).map((subBucket) => ({
+  const directSubBuckets = safeArray(
+    bucket?.subBuckets
+  ).map((subBucket) => ({
     ...subBucket,
     id: subBucket.id || getName(subBucket),
     name: getName(subBucket),
@@ -116,21 +162,28 @@ function normalizeSubBuckets(bucket, setup) {
   }));
 
   if (directSubBuckets.length > 0) {
-    return directSubBuckets.filter((subBucket) => subBucket.name);
+    return directSubBuckets.filter(
+      (subBucket) => subBucket.name
+    );
   }
 
   const bucketName = getName(bucket);
+
   const setupSubBuckets =
     setup?.subBuckets?.[bucketName] ||
     setup?.subBucketPercentages?.[bucketName] ||
     setup?.subBucketRules?.[bucketName] ||
     setup?.children?.[bucketName];
 
-  return objectToSubBuckets(setupSubBuckets).filter((subBucket) => subBucket.name);
+  return objectToSubBuckets(setupSubBuckets).filter(
+    (subBucket) => subBucket.name
+  );
 }
 
 function normalizeBuckets(setup) {
-  const bucketGroups = safeArray(setup?.bucketGroups).map((bucket) => ({
+  const bucketGroups = safeArray(
+    setup?.bucketGroups
+  ).map((bucket) => ({
     ...bucket,
     id: bucket.id || getName(bucket),
     name: getName(bucket),
@@ -140,7 +193,9 @@ function normalizeBuckets(setup) {
   }));
 
   if (bucketGroups.length > 0) {
-    return bucketGroups.filter((bucket) => bucket.name);
+    return bucketGroups.filter(
+      (bucket) => bucket.name
+    );
   }
 
   const groups =
@@ -150,7 +205,11 @@ function normalizeBuckets(setup) {
     setup?.allocations ||
     {};
 
-  if (!groups || typeof groups !== "object" || Array.isArray(groups)) {
+  if (
+    !groups ||
+    typeof groups !== "object" ||
+    Array.isArray(groups)
+  ) {
     return [];
   }
 
@@ -159,11 +218,11 @@ function normalizeBuckets(setup) {
       const bucket =
         value && typeof value === "object"
           ? {
-              id: value.id || name,
-              name: value.name || value.label || name,
-              percent: Number(value.percent ?? value.percentage ?? value.allocation ?? value.split ?? 0),
-              archived: Boolean(value.archived || value.isArchived || value.inactive),
               ...value,
+              id: value.id || name,
+              name: value.name || name,
+              percent: getPercentValue(value),
+              archived: isArchived(value),
             }
           : {
               id: name,
@@ -181,44 +240,64 @@ function normalizeBuckets(setup) {
 }
 
 function getTransactionType(transaction) {
-  return normalizeText(transaction.type).toLowerCase();
+  return normalizeText(
+    transaction?.type
+  ).toLowerCase();
 }
 
 function getTransactionAmount(transaction) {
-  return Number(transaction.amount || 0);
+  return Number(transaction?.amount || 0);
 }
 
 function getTransactionBucket(transaction) {
   return normalizeText(
-    transaction.bucket ||
-      transaction.group ||
-      transaction.bucketName ||
-      transaction.category ||
-      transaction.toBucket
+    transaction?.bucket ||
+      transaction?.group ||
+      transaction?.bucketName ||
+      transaction?.category
   );
 }
 
 function getTransactionSubBucket(transaction) {
   return normalizeText(
-    transaction.subBucket ||
-      transaction.subbucket ||
-      transaction.subCategory ||
-      transaction.subBucketName ||
-      transaction.bill ||
-      transaction.name ||
-      transaction.toSubBucket
+    transaction?.subBucket ||
+      transaction?.subbucket ||
+      transaction?.subCategory ||
+      transaction?.subBucketName ||
+      transaction?.bill ||
+      transaction?.name
   );
 }
 
 function getTransactionDate(transaction) {
-  return transaction.date || transaction.createdAt || transaction.timestamp || "";
+  return (
+    transaction?.date ||
+    transaction?.createdAt ||
+    transaction?.timestamp ||
+    ""
+  );
 }
 
 function getTransactionNote(transaction) {
-  return transaction.note || transaction.description || "";
+  return (
+    transaction?.note ||
+    transaction?.description ||
+    ""
+  );
 }
 
-function createBalanceShell(allBuckets) {
+function getSavedAllocations(transaction) {
+  const allocations =
+    transaction?.allocations ||
+    transaction?.splits ||
+    transaction?.split ||
+    transaction?.bucketAllocations ||
+    transaction?.subBucketAllocations;
+
+  return safeArray(allocations);
+}
+
+function createBalancesShell(allBuckets) {
   const balances = {};
 
   allBuckets.forEach((bucket) => {
@@ -228,14 +307,72 @@ function createBalanceShell(allBuckets) {
     };
 
     bucket.subBuckets.forEach((subBucket) => {
-      balances[bucket.name].subBuckets[subBucket.name] = 0;
+      balances[bucket.name].subBuckets[
+        subBucket.name
+      ] = 0;
     });
   });
 
   return balances;
 }
 
-function addHistory(historyMap, bucketName, subBucketName, entry) {
+function ensureBucketExists(
+  balances,
+  bucketName,
+  subBucketName
+) {
+  if (!bucketName) return;
+
+  if (!balances[bucketName]) {
+    balances[bucketName] = {
+      total: 0,
+      subBuckets: {},
+    };
+  }
+
+  if (
+    subBucketName &&
+    balances[bucketName].subBuckets[
+      subBucketName
+    ] === undefined
+  ) {
+    balances[bucketName].subBuckets[
+      subBucketName
+    ] = 0;
+  }
+}
+
+function addBalance(
+  balances,
+  bucketName,
+  subBucketName,
+  amount
+) {
+  if (!bucketName) return;
+
+  ensureBucketExists(
+    balances,
+    bucketName,
+    subBucketName
+  );
+
+  if (subBucketName) {
+    balances[bucketName].subBuckets[
+      subBucketName
+    ] += Number(amount || 0);
+  }
+
+  balances[bucketName].total += Number(
+    amount || 0
+  );
+}
+
+function addHistory(
+  historyMap,
+  bucketName,
+  subBucketName,
+  entry
+) {
   if (!bucketName || !subBucketName) return;
 
   const key = `${bucketName}|||${subBucketName}`;
@@ -247,46 +384,13 @@ function addHistory(historyMap, bucketName, subBucketName, entry) {
   historyMap[key].push(entry);
 }
 
-function ensureBucket(balances, bucketName) {
-  if (!bucketName) return;
-
-  if (!balances[bucketName]) {
-    balances[bucketName] = {
-      total: 0,
-      subBuckets: {},
-    };
-  }
-}
-
-function addBalance(balances, bucketName, subBucketName, amount) {
-  if (!bucketName) return;
-
-  ensureBucket(balances, bucketName);
-
-  if (subBucketName) {
-    if (balances[bucketName].subBuckets[subBucketName] === undefined) {
-      balances[bucketName].subBuckets[subBucketName] = 0;
-    }
-
-    balances[bucketName].subBuckets[subBucketName] += amount;
-  }
-
-  balances[bucketName].total += amount;
-}
-
-function getSavedAllocations(transaction) {
-  const possible =
-    transaction.allocations ||
-    transaction.splits ||
-    transaction.split ||
-    transaction.bucketAllocations ||
-    transaction.subBucketAllocations;
-
-  return Array.isArray(possible) ? possible : [];
-}
-
-function applyAllocationTransaction(transaction, balances, historyMap, label) {
-  const allocations = getSavedAllocations(transaction);
+function applyAllocationTransaction(
+  transaction,
+  balances,
+  historyMap
+) {
+  const allocations =
+    getSavedAllocations(transaction);
 
   if (allocations.length === 0) {
     return false;
@@ -294,153 +398,300 @@ function applyAllocationTransaction(transaction, balances, historyMap, label) {
 
   allocations.forEach((allocation) => {
     const bucketName = normalizeText(
-      allocation.bucket ||
-        allocation.group ||
-        allocation.bucketName ||
-        allocation.category
+      allocation?.bucket ||
+        allocation?.group ||
+        allocation?.bucketName
     );
 
     const subBucketName = normalizeText(
-      allocation.subBucket ||
-        allocation.subbucket ||
-        allocation.subBucketName ||
-        allocation.subCategory ||
-        allocation.name
+      allocation?.subBucket ||
+        allocation?.subbucket ||
+        allocation?.subBucketName ||
+        allocation?.name
     );
 
-    const amount = Number(allocation.amount || 0);
+    const amount = Number(
+      allocation?.amount || 0
+    );
 
-    if (!bucketName || !subBucketName || !amount) return;
+    if (
+      !bucketName ||
+      !subBucketName ||
+      !amount
+    ) {
+      return;
+    }
 
-    addBalance(balances, bucketName, subBucketName, amount);
+    addBalance(
+      balances,
+      bucketName,
+      subBucketName,
+      amount
+    );
 
-    addHistory(historyMap, bucketName, subBucketName, {
-      type: label,
-      amount,
-      date: getTransactionDate(transaction),
-      note: getTransactionNote(transaction),
-    });
+    addHistory(
+      historyMap,
+      bucketName,
+      subBucketName,
+      {
+        type: "Paycheck Funding",
+        amount,
+        date: getTransactionDate(transaction),
+        note: getTransactionNote(transaction),
+      }
+    );
   });
 
   return true;
 }
 
-function calculatePaycheck(transaction, allBuckets, balances, historyMap) {
-  if (applyAllocationTransaction(transaction, balances, historyMap, "Paycheck Funding")) {
+function calculatePaycheck(
+  transaction,
+  activeBuckets,
+  balances,
+  historyMap
+) {
+  const usedSavedAllocations =
+    applyAllocationTransaction(
+      transaction,
+      balances,
+      historyMap
+    );
+
+  if (usedSavedAllocations) {
     return;
   }
 
-  const amount = getTransactionAmount(transaction);
+  const paycheckAmount =
+    getTransactionAmount(transaction);
 
-  allBuckets
-    .filter((bucket) => !bucket.archived)
-    .forEach((bucket) => {
-      const activeSubBuckets = bucket.subBuckets.filter((subBucket) => !subBucket.archived);
-      const bucketAmount = amount * (Number(bucket.percent || 0) / 100);
+  activeBuckets.forEach((bucket) => {
+    const bucketPercent = Number(
+      bucket.percent || 0
+    );
 
-      if (activeSubBuckets.length === 0) {
-        addBalance(balances, bucket.name, "", bucketAmount);
-        return;
-      }
+    const bucketAmount =
+      paycheckAmount * (bucketPercent / 100);
 
-      let remaining = bucketAmount;
+    const activeSubBuckets =
+      bucket.subBuckets.filter(
+        (subBucket) => !subBucket.archived
+      );
 
-      activeSubBuckets.forEach((subBucket, index) => {
-        let subAmount;
+    if (activeSubBuckets.length === 0) {
+      addBalance(
+        balances,
+        bucket.name,
+        "",
+        bucketAmount
+      );
 
-        if (index === activeSubBuckets.length - 1) {
+      return;
+    }
+
+    let remaining = bucketAmount;
+
+    activeSubBuckets.forEach(
+      (subBucket, index) => {
+        let subAmount = 0;
+
+        if (
+          index ===
+          activeSubBuckets.length - 1
+        ) {
           subAmount = remaining;
         } else {
-          subAmount = bucketAmount * (Number(subBucket.percent || 0) / 100);
+          subAmount =
+            bucketAmount *
+            (Number(subBucket.percent || 0) /
+              100);
+
           remaining -= subAmount;
         }
 
-        addBalance(balances, bucket.name, subBucket.name, subAmount);
+        addBalance(
+          balances,
+          bucket.name,
+          subBucket.name,
+          subAmount
+        );
 
-        addHistory(historyMap, bucket.name, subBucket.name, {
-          type: "Paycheck Funding",
-          amount: subAmount,
-          date: getTransactionDate(transaction),
-          note: getTransactionNote(transaction),
-        });
-      });
-    });
+        addHistory(
+          historyMap,
+          bucket.name,
+          subBucket.name,
+          {
+            type: "Paycheck Funding",
+            amount: subAmount,
+            date: getTransactionDate(transaction),
+            note: getTransactionNote(transaction),
+          }
+        );
+      }
+    );
+  });
 }
 
-function calculateBalances(transactions, allBuckets) {
-  const balances = createBalanceShell(allBuckets);
+function calculateBalances(
+  transactions,
+  allBuckets
+) {
+  const balances =
+    createBalancesShell(allBuckets);
+
   const historyMap = {};
 
   transactions.forEach((transaction) => {
-    const type = getTransactionType(transaction);
-    const amount = getTransactionAmount(transaction);
+    const type =
+      getTransactionType(transaction);
 
-    if (!amount && getSavedAllocations(transaction).length === 0) return;
+    const amount =
+      getTransactionAmount(transaction);
+
+    if (
+      !amount &&
+      getSavedAllocations(transaction)
+        .length === 0
+    ) {
+      return;
+    }
 
     if (type === "paycheck") {
-      calculatePaycheck(transaction, allBuckets, balances, historyMap);
+      calculatePaycheck(
+        transaction,
+        allBuckets.filter(
+          (bucket) => !bucket.archived
+        ),
+        balances,
+        historyMap
+      );
+
       return;
     }
 
     if (type === "expense") {
-      const bucketName = getTransactionBucket(transaction);
-      const subBucketName = getTransactionSubBucket(transaction);
+      const bucketName =
+        getTransactionBucket(transaction);
 
-      addBalance(balances, bucketName, subBucketName, -amount);
+      const subBucketName =
+        getTransactionSubBucket(transaction);
 
-      addHistory(historyMap, bucketName, subBucketName, {
-        type: "Expense",
-        amount: -amount,
-        date: getTransactionDate(transaction),
-        note: getTransactionNote(transaction),
-      });
+      addBalance(
+        balances,
+        bucketName,
+        subBucketName,
+        -Math.abs(amount)
+      );
+
+      addHistory(
+        historyMap,
+        bucketName,
+        subBucketName,
+        {
+          type: "Expense",
+          amount: -Math.abs(amount),
+          date: getTransactionDate(transaction),
+          note: getTransactionNote(transaction),
+        }
+      );
 
       return;
     }
 
     if (type === "deposit") {
-      const bucketName = getTransactionBucket(transaction);
-      const subBucketName = getTransactionSubBucket(transaction);
+      const bucketName =
+        getTransactionBucket(transaction);
 
-      addBalance(balances, bucketName, subBucketName, amount);
+      const subBucketName =
+        getTransactionSubBucket(transaction);
 
-      addHistory(historyMap, bucketName, subBucketName, {
-        type: "Deposit",
-        amount,
-        date: getTransactionDate(transaction),
-        note: getTransactionNote(transaction),
-      });
+      addBalance(
+        balances,
+        bucketName,
+        subBucketName,
+        Math.abs(amount)
+      );
+
+      addHistory(
+        historyMap,
+        bucketName,
+        subBucketName,
+        {
+          type: "Deposit",
+          amount: Math.abs(amount),
+          date: getTransactionDate(transaction),
+          note: getTransactionNote(transaction),
+        }
+      );
 
       return;
     }
 
     if (type === "transfer") {
-      const fromBucket = normalizeText(transaction.fromBucket);
-      const fromSubBucket = normalizeText(transaction.fromSubBucket);
-      const toBucket = normalizeText(transaction.toBucket);
-      const toSubBucket = normalizeText(transaction.toSubBucket);
+      const fromBucket =
+        normalizeText(
+          transaction?.fromBucket
+        );
 
-      addBalance(balances, fromBucket, fromSubBucket, -amount);
-      addBalance(balances, toBucket, toSubBucket, amount);
+      const fromSubBucket =
+        normalizeText(
+          transaction?.fromSubBucket
+        );
 
-      addHistory(historyMap, fromBucket, fromSubBucket, {
-        type: "Transfer Out",
-        amount: -amount,
-        date: getTransactionDate(transaction),
-        note: getTransactionNote(transaction),
-      });
+      const toBucket =
+        normalizeText(transaction?.toBucket);
 
-      addHistory(historyMap, toBucket, toSubBucket, {
-        type: "Transfer In",
-        amount,
-        date: getTransactionDate(transaction),
-        note: getTransactionNote(transaction),
-      });
+      const toSubBucket =
+        normalizeText(
+          transaction?.toSubBucket
+        );
+
+      addBalance(
+        balances,
+        fromBucket,
+        fromSubBucket,
+        -Math.abs(amount)
+      );
+
+      addBalance(
+        balances,
+        toBucket,
+        toSubBucket,
+        Math.abs(amount)
+      );
+
+      addHistory(
+        historyMap,
+        fromBucket,
+        fromSubBucket,
+        {
+          type: "Transfer Out",
+          amount: -Math.abs(amount),
+          date: getTransactionDate(transaction),
+          note: getTransactionNote(transaction),
+        }
+      );
+
+      addHistory(
+        historyMap,
+        toBucket,
+        toSubBucket,
+        {
+          type: "Transfer In",
+          amount: Math.abs(amount),
+          date: getTransactionDate(transaction),
+          note: getTransactionNote(transaction),
+        }
+      );
     }
   });
 
   Object.keys(historyMap).forEach((key) => {
-    historyMap[key].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    historyMap[key].sort((a, b) =>
+      String(b.date).localeCompare(
+        String(a.date)
+      )
+    );
   });
 
   return {
@@ -449,98 +700,72 @@ function calculateBalances(transactions, allBuckets) {
   };
 }
 
-function getDaysUntilDue(dueDate) {
-  if (!dueDate) return null;
-
-  const now = new Date();
-  const due = new Date(dueDate);
-
-  if (Number.isNaN(due.getTime())) return null;
-
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-
-  return Math.ceil((end.getTime() - start.getTime()) / 86400000);
-}
-
-function getMonthsCovered(amount, subBucket) {
-  const monthlyTarget = getMonthlyTarget(subBucket);
-
-  if (monthlyTarget <= 0) return null;
-
-  return amount / monthlyTarget;
-}
-
-function getFundedPercent(subBucket, amount) {
-  const target = getTargetValue(subBucket);
+function getFundedPercent(
+  subBucket,
+  amount
+) {
+  const target =
+    getTargetValue(subBucket);
 
   if (target <= 0) {
     return amount >= 0 ? 100 : 0;
   }
 
-  return Math.max(0, Math.round((amount / target) * 100));
+  return Math.max(
+    0,
+    Math.round((amount / target) * 100)
+  );
 }
 
-function getBucketProgress(bucket, bucketBalance) {
-  const visibleSubBuckets = bucket.subBuckets.filter((subBucket) => !subBucket.archived);
+function getBucketProgress(
+  bucket,
+  bucketBalance
+) {
+  const subBuckets =
+    bucket.subBuckets.filter(
+      (subBucket) => !subBucket.archived
+    );
+
   let targetTotal = 0;
   let fundedTotal = 0;
 
-  visibleSubBuckets.forEach((subBucket) => {
-    const target = getTargetValue(subBucket);
-    const amount = Number(bucketBalance?.subBuckets?.[subBucket.name] || 0);
+  subBuckets.forEach((subBucket) => {
+    const target =
+      getTargetValue(subBucket);
+
+    const amount = Number(
+      bucketBalance?.subBuckets?.[
+        subBucket.name
+      ] || 0
+    );
 
     if (target > 0) {
       targetTotal += target;
-      fundedTotal += Math.min(amount, target);
+      fundedTotal += Math.min(
+        amount,
+        target
+      );
     }
   });
 
   if (targetTotal <= 0) {
-    return Number(bucketBalance?.total || 0) >= 0 ? 100 : 0;
+    return bucketBalance?.total >= 0
+      ? 100
+      : 0;
   }
 
-  return Math.max(0, Math.round((fundedTotal / targetTotal) * 100));
+  return Math.max(
+    0,
+    Math.round(
+      (fundedTotal / targetTotal) * 100
+    )
+  );
 }
 
-function getStatus(subBucket, amount, fundedPercent) {
-  if (amount < 0) {
-    return {
-      label: "Negative",
-      tone: "red",
-    };
-  }
-
-  if (fundedPercent >= 100) {
-    return {
-      label: "Funded",
-      tone: "green",
-    };
-  }
-
-  const daysUntilDue = getDaysUntilDue(getDueDate(subBucket));
-
-  if (daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 10) {
-    return {
-      label: "Due Soon",
-      tone: "yellow",
-    };
-  }
-
-  if (fundedPercent >= 75) {
-    return {
-      label: "Close",
-      tone: "yellow",
-    };
-  }
-
-  return {
-    label: "Underfunded",
-    tone: "red",
-  };
-}
-
-function getBucketStatus(progress, total) {
+function getBucketStatus(
+  progress,
+  total
+) {
   if (total < 0) {
     return {
       label: "Negative",
@@ -568,84 +793,272 @@ function getBucketStatus(progress, total) {
   };
 }
 
-function getNeededPerMonth(subBucket, amount) {
-  const target = getTargetValue(subBucket);
-  const targetDate = getTargetDate(subBucket);
-
-  if (!target || !targetDate) return null;
-
-  const end = new Date(targetDate);
-
-  if (Number.isNaN(end.getTime())) return null;
+function getDaysUntilDue(dueDate) {
+  if (!dueDate) return null;
 
   const now = new Date();
+  const due = new Date(dueDate);
+
+  if (Number.isNaN(due.getTime())) {
+    return null;
+  }
+
+  const diff =
+    due.getTime() - now.getTime();
+
+  return Math.ceil(
+    diff / (1000 * 60 * 60 * 24)
+  );
+}
+
+function getMonthsCovered(
+  amount,
+  subBucket
+) {
+  const monthlyTarget =
+    getMonthlyTarget(subBucket);
+
+  if (monthlyTarget <= 0) {
+    return null;
+  }
+
+  return amount / monthlyTarget;
+}
+
+function getNeededPerMonth(
+  subBucket,
+  amount
+) {
+  const target =
+    getTargetValue(subBucket);
+
+  const targetDate =
+    getTargetDate(subBucket);
+
+  if (!target || !targetDate) {
+    return null;
+  }
+
+  const now = new Date();
+  const end = new Date(targetDate);
+
+  if (Number.isNaN(end.getTime())) {
+    return null;
+  }
+
   const months =
-    (end.getFullYear() - now.getFullYear()) * 12 +
+    (end.getFullYear() -
+      now.getFullYear()) *
+      12 +
     (end.getMonth() - now.getMonth()) +
     1;
 
-  if (months <= 0) return null;
+  if (months <= 0) {
+    return null;
+  }
 
-  return Math.max(0, (target - amount) / months);
+  return Math.max(
+    0,
+    (target - amount) / months
+  );
+}
+
+function getSubBucketStatus(
+  subBucket,
+  amount,
+  fundedPercent
+) {
+  if (amount < 0) {
+    return {
+      label: "Negative",
+      tone: "red",
+    };
+  }
+
+  if (fundedPercent >= 100) {
+    return {
+      label: "Funded",
+      tone: "green",
+    };
+  }
+
+  const dueDays = getDaysUntilDue(
+    getDueDate(subBucket)
+  );
+
+  if (
+    dueDays !== null &&
+    dueDays >= 0 &&
+    dueDays <= 10
+  ) {
+    return {
+      label: "Due Soon",
+      tone: "yellow",
+    };
+  }
+
+  if (fundedPercent >= 75) {
+    return {
+      label: "Close",
+      tone: "yellow",
+    };
+  }
+
+  return {
+    label: "Underfunded",
+    tone: "red",
+  };
 }
 
 function getBucketAccent(bucketName) {
   const key = normalizeKey(bucketName);
 
-  if (key.includes("goal")) return "blue";
-  if (key.includes("saving")) return "blue";
-  if (key.includes("bill")) return "green";
-  if (key.includes("giving")) return "green";
-  if (key.includes("spending")) return "yellow";
+  if (key.includes("goal")) {
+    return "blue";
+  }
 
-  return "blue";
+  if (key.includes("saving")) {
+    return "blue";
+  }
+
+  if (key.includes("giving")) {
+    return "green";
+  }
+
+  if (key.includes("spending")) {
+    return "yellow";
+  }
+
+  return "green";
 }
 
 export default function Dashboard() {
-  const [data, setData] = useState(() => loadData());
-  const [openBuckets, setOpenBuckets] = useState({});
-  const [openHistoryKey, setOpenHistoryKey] = useState("");
+  const [data, setData] = useState(() =>
+    loadData()
+  );
 
-  useEffect(() => {
-    function refreshData() {
-      setData(loadData());
-    }
+  const [openBuckets, setOpenBuckets] =
+    useState({});
 
-    window.addEventListener("focus", refreshData);
-    window.addEventListener("pageshow", refreshData);
+  const [openHistoryKey, setOpenHistoryKey] =
+    useState("");
 
-    return () => {
-      window.removeEventListener("focus", refreshData);
-      window.removeEventListener("pageshow", refreshData);
-    };
+  const refreshData = useCallback(() => {
+    const freshData = loadData();
+    setData(freshData);
   }, []);
 
-  const setup = useMemo(() => getSetup(data || {}), [data]);
-  const allBuckets = useMemo(() => normalizeBuckets(setup), [setup]);
-  const activeBuckets = useMemo(() => allBuckets.filter((bucket) => !bucket.archived), [allBuckets]);
-  const transactions = useMemo(() => getTransactions(data || {}), [data]);
+  useEffect(() => {
+    refreshData();
 
-  const { balances, historyMap } = useMemo(() => {
-    return calculateBalances(transactions, allBuckets);
-  }, [transactions, allBuckets]);
+    function handleFocus() {
+      refreshData();
+    }
+
+    function handlePageShow() {
+      refreshData();
+    }
+
+    function handleStorage(event) {
+      if (
+        !event.key ||
+        event.storageArea === localStorage
+      ) {
+        refreshData();
+      }
+    }
+
+    window.addEventListener(
+      "focus",
+      handleFocus
+    );
+
+    window.addEventListener(
+      "pageshow",
+      handlePageShow
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus",
+        handleFocus
+      );
+
+      window.removeEventListener(
+        "pageshow",
+        handlePageShow
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+    };
+  }, [refreshData]);
+
+  const setup = useMemo(() => {
+    return getSetup(data || {});
+  }, [data]);
+
+  const allBuckets = useMemo(() => {
+    return normalizeBuckets(setup);
+  }, [setup]);
+
+  const activeBuckets = useMemo(() => {
+    return allBuckets.filter(
+      (bucket) => !bucket.archived
+    );
+  }, [allBuckets]);
+
+  const transactions = useMemo(() => {
+    return getTransactions(data || {});
+  }, [data]);
+
+  const { balances, historyMap } =
+    useMemo(() => {
+      return calculateBalances(
+        transactions,
+        allBuckets
+      );
+    }, [transactions, allBuckets]);
 
   const totalMoney = useMemo(() => {
-    return activeBuckets.reduce((total, bucket) => {
-      return total + Number(balances[bucket.name]?.total || 0);
-    }, 0);
+    return activeBuckets.reduce(
+      (total, bucket) => {
+        return (
+          total +
+          Number(
+            balances?.[bucket.name]?.total ||
+              0
+          )
+        );
+      },
+      0
+    );
   }, [activeBuckets, balances]);
 
   function toggleBucket(bucketName) {
     setOpenBuckets((current) => ({
       ...current,
-      [bucketName]: !current[bucketName],
+      [bucketName]:
+        !current[bucketName],
     }));
   }
 
-  function toggleHistory(bucketName, subBucketName) {
+  function toggleHistory(
+    bucketName,
+    subBucketName
+  ) {
     const key = `${bucketName}|||${subBucketName}`;
 
-    setOpenHistoryKey((current) => (current === key ? "" : key));
+    setOpenHistoryKey((current) =>
+      current === key ? "" : key
+    );
   }
 
   return (
@@ -657,148 +1070,382 @@ export default function Dashboard() {
 
         <div>
           <h1>Balances</h1>
-          <p>Calculated from History + Setup</p>
+          <p>
+            Live calculated output from
+            transactions + setup
+          </p>
         </div>
       </header>
 
       <section className="total-card">
         <span>Total Money</span>
-        <strong className={totalMoney < 0 ? "negative-money" : ""}>{money(totalMoney)}</strong>
-        <p>Live output only. No manual balances.</p>
+
+        <strong
+          className={
+            totalMoney < 0
+              ? "negative-money"
+              : ""
+          }
+        >
+          {money(totalMoney)}
+        </strong>
+
+        <p>
+          History = truth · Setup = rules
+        </p>
       </section>
 
-      {activeBuckets.length === 0 ? (
-        <section className="empty-card">
-          <h2>No active buckets found</h2>
-          <p>Go to Setup and add active buckets and sub-buckets.</p>
-        </section>
-      ) : (
-        <main className="bucket-list">
-          {activeBuckets.map((bucket) => {
-            const bucketBalance = balances[bucket.name] || {
+      <main className="bucket-list">
+        {activeBuckets.map((bucket) => {
+          const bucketBalance =
+            balances?.[bucket.name] || {
               total: 0,
               subBuckets: {},
             };
 
-            const isOpen = !!openBuckets[bucket.name];
-            const bucketProgress = getBucketProgress(bucket, bucketBalance);
-            const bucketStatus = getBucketStatus(bucketProgress, bucketBalance.total);
-            const activeSubBuckets = bucket.subBuckets.filter((subBucket) => !subBucket.archived);
-            const accent = getBucketAccent(bucket.name);
+          const bucketProgress =
+            getBucketProgress(
+              bucket,
+              bucketBalance
+            );
 
-            return (
-              <section className={`bucket-card accent-${accent}`} key={bucket.id || bucket.name}>
-                <button type="button" className="bucket-header" onClick={() => toggleBucket(bucket.name)}>
-                  <div className="bucket-title-wrap">
-                    <div className="bucket-icon">{bucket.name.slice(0, 1).toUpperCase()}</div>
+          const bucketStatus =
+            getBucketStatus(
+              bucketProgress,
+              bucketBalance.total
+            );
 
-                    <div>
-                      <h2>{bucket.name}</h2>
-                      <p>
-                        {activeSubBuckets.length} sub-buckets · {percent(bucketProgress)} funded
-                      </p>
-                    </div>
+          const isOpen =
+            !!openBuckets[bucket.name];
+
+          const activeSubBuckets =
+            bucket.subBuckets.filter(
+              (subBucket) =>
+                !subBucket.archived
+            );
+
+          const accent =
+            getBucketAccent(bucket.name);
+
+          return (
+            <section
+              className={`bucket-card accent-${accent}`}
+              key={bucket.id || bucket.name}
+            >
+              <button
+                type="button"
+                className="bucket-header"
+                onClick={() =>
+                  toggleBucket(bucket.name)
+                }
+              >
+                <div className="bucket-title-wrap">
+                  <div className="bucket-icon">
+                    {bucket.name
+                      .slice(0, 1)
+                      .toUpperCase()}
                   </div>
 
-                  <div className="bucket-header-right">
-                    <strong className={bucketBalance.total < 0 ? "negative-money" : ""}>
-                      {money(bucketBalance.total)}
-                    </strong>
+                  <div>
+                    <h2>{bucket.name}</h2>
 
-                    <span className={`status-pill ${bucketStatus.tone}`}>{bucketStatus.label}</span>
+                    <p>
+                      {
+                        activeSubBuckets.length
+                      }{" "}
+                      sub-buckets ·{" "}
+                      {percent(
+                        bucketProgress
+                      )}{" "}
+                      funded
+                    </p>
                   </div>
-                </button>
-
-                <div className="bucket-progress-bar">
-                  <div
-                    className={`bucket-progress-fill ${bucketStatus.tone}`}
-                    style={{
-                      width: `${Math.min(Math.max(bucketProgress, 0), 100)}%`,
-                    }}
-                  />
                 </div>
 
-                {isOpen && (
-                  <div className="subbucket-list">
-                    {activeSubBuckets.map((subBucket) => {
-                      const amount = Number(bucketBalance.subBuckets?.[subBucket.name] || 0);
-                      const target = getTargetValue(subBucket);
-                      const monthlyTarget = getMonthlyTarget(subBucket);
-                      const yearlyTarget = getYearlyTarget(subBucket);
-                      const reserveGoal = getReserveGoal(subBucket);
-                      const dueDate = getDueDate(subBucket);
-                      const frequency = getFrequency(subBucket);
-                      const targetDate = getTargetDate(subBucket);
-                      const fundedPercent = getFundedPercent(subBucket, amount);
-                      const status = getStatus(subBucket, amount, fundedPercent);
-                      const daysUntilDue = getDaysUntilDue(dueDate);
-                      const monthsCovered = getMonthsCovered(amount, subBucket);
-                      const neededPerMonth = getNeededPerMonth(subBucket, amount);
+                <div className="bucket-header-right">
+                  <strong
+                    className={
+                      bucketBalance.total < 0
+                        ? "negative-money"
+                        : ""
+                    }
+                  >
+                    {money(
+                      bucketBalance.total
+                    )}
+                  </strong>
+
+                  <span
+                    className={`status-pill ${bucketStatus.tone}`}
+                  >
+                    {bucketStatus.label}
+                  </span>
+                </div>
+              </button>
+
+              <div className="bucket-progress-bar">
+                <div
+                  className={`bucket-progress-fill ${bucketStatus.tone}`}
+                  style={{
+                    width: `${Math.min(
+                      Math.max(
+                        bucketProgress,
+                        0
+                      ),
+                      100
+                    )}%`,
+                  }}
+                />
+              </div>
+
+              {isOpen && (
+                <div className="subbucket-list">
+                  {activeSubBuckets.map(
+                    (subBucket) => {
+                      const amount =
+                        Number(
+                          bucketBalance
+                            ?.subBuckets?.[
+                            subBucket.name
+                          ] || 0
+                        );
+
+                      const target =
+                        getTargetValue(
+                          subBucket
+                        );
+
+                      const fundedPercent =
+                        getFundedPercent(
+                          subBucket,
+                          amount
+                        );
+
+                      const status =
+                        getSubBucketStatus(
+                          subBucket,
+                          amount,
+                          fundedPercent
+                        );
+
+                      const dueDate =
+                        getDueDate(
+                          subBucket
+                        );
+
+                      const frequency =
+                        getFrequency(
+                          subBucket
+                        );
+
+                      const monthlyTarget =
+                        getMonthlyTarget(
+                          subBucket
+                        );
+
+                      const yearlyTarget =
+                        getYearlyTarget(
+                          subBucket
+                        );
+
+                      const reserveGoal =
+                        getReserveGoal(
+                          subBucket
+                        );
+
+                      const monthsCovered =
+                        getMonthsCovered(
+                          amount,
+                          subBucket
+                        );
+
+                      const neededPerMonth =
+                        getNeededPerMonth(
+                          subBucket,
+                          amount
+                        );
+
+                      const dueDays =
+                        getDaysUntilDue(
+                          dueDate
+                        );
+
                       const historyKey = `${bucket.name}|||${subBucket.name}`;
-                      const history = historyMap[historyKey] || [];
-                      const historyOpen = openHistoryKey === historyKey;
+
+                      const history =
+                        historyMap[
+                          historyKey
+                        ] || [];
+
+                      const historyOpen =
+                        openHistoryKey ===
+                        historyKey;
 
                       return (
-                        <article className="subbucket-card" key={subBucket.id || subBucket.name}>
+                        <article
+                          className="subbucket-card"
+                          key={
+                            subBucket.id ||
+                            subBucket.name
+                          }
+                        >
                           <button
                             type="button"
                             className="subbucket-main"
-                            onClick={() => toggleHistory(bucket.name, subBucket.name)}
+                            onClick={() =>
+                              toggleHistory(
+                                bucket.name,
+                                subBucket.name
+                              )
+                            }
                           >
                             <div className="subbucket-top">
                               <div>
-                                <h3>{subBucket.name}</h3>
+                                <h3>
+                                  {
+                                    subBucket.name
+                                  }
+                                </h3>
 
-                                {target > 0 ? (
+                                {target >
+                                0 ? (
                                   <p>
-                                    {money(amount)} / {money(target)}
+                                    {money(
+                                      amount
+                                    )}{" "}
+                                    /{" "}
+                                    {money(
+                                      target
+                                    )}
                                   </p>
                                 ) : (
-                                  <p>{money(amount)} available</p>
+                                  <p>
+                                    {money(
+                                      amount
+                                    )}{" "}
+                                    available
+                                  </p>
                                 )}
                               </div>
 
                               <div className="subbucket-money">
-                                <strong className={amount < 0 ? "negative-money" : ""}>{money(amount)}</strong>
-                                <span className={`status-pill ${status.tone}`}>{status.label}</span>
+                                <strong
+                                  className={
+                                    amount < 0
+                                      ? "negative-money"
+                                      : ""
+                                  }
+                                >
+                                  {money(
+                                    amount
+                                  )}
+                                </strong>
+
+                                <span
+                                  className={`status-pill ${status.tone}`}
+                                >
+                                  {
+                                    status.label
+                                  }
+                                </span>
                               </div>
                             </div>
 
                             <div className="subbucket-meta">
-                              <span>{percent(fundedPercent)} funded</span>
+                              <span>
+                                {percent(
+                                  fundedPercent
+                                )}{" "}
+                                funded
+                              </span>
 
                               {dueDate ? (
                                 <span>
-                                  {daysUntilDue === null
+                                  {dueDays ===
+                                  null
                                     ? `Due ${dueDate}`
-                                    : daysUntilDue < 0
-                                      ? `Overdue ${Math.abs(daysUntilDue)} days`
-                                      : daysUntilDue === 0
+                                    : dueDays <
+                                        0
+                                      ? `Overdue ${Math.abs(
+                                          dueDays
+                                        )} days`
+                                      : dueDays ===
+                                          0
                                         ? "Due today"
-                                        : `Due in ${daysUntilDue} days`}
+                                        : `Due in ${dueDays} days`}
                                 </span>
                               ) : null}
 
-                              {frequency ? <span>{frequency}</span> : null}
+                              {frequency ? (
+                                <span>
+                                  {
+                                    frequency
+                                  }
+                                </span>
+                              ) : null}
 
-                              {monthsCovered !== null ? <span>{monthsCovered.toFixed(2)} months covered</span> : null}
+                              {monthlyTarget >
+                              0 ? (
+                                <span>
+                                  {money(
+                                    monthlyTarget
+                                  )}{" "}
+                                  monthly
+                                </span>
+                              ) : null}
 
-                              {reserveGoal > 0 ? <span>{reserveGoal} month reserve goal</span> : null}
+                              {yearlyTarget >
+                              0 ? (
+                                <span>
+                                  {money(
+                                    yearlyTarget
+                                  )}{" "}
+                                  yearly
+                                </span>
+                              ) : null}
 
-                              {monthlyTarget > 0 ? <span>{money(monthlyTarget)} monthly target</span> : null}
+                              {reserveGoal >
+                              0 ? (
+                                <span>
+                                  {
+                                    reserveGoal
+                                  }{" "}
+                                  month reserve
+                                </span>
+                              ) : null}
 
-                              {yearlyTarget > 0 ? <span>{money(yearlyTarget)} yearly target</span> : null}
+                              {monthsCovered !==
+                              null ? (
+                                <span>
+                                  {monthsCovered.toFixed(
+                                    2
+                                  )}{" "}
+                                  months covered
+                                </span>
+                              ) : null}
 
-                              {targetDate ? <span>Target date {targetDate}</span> : null}
-
-                              {neededPerMonth !== null ? <span>{money(neededPerMonth)} needed/month</span> : null}
+                              {neededPerMonth !==
+                              null ? (
+                                <span>
+                                  {money(
+                                    neededPerMonth
+                                  )}{" "}
+                                  needed/month
+                                </span>
+                              ) : null}
                             </div>
 
                             <div className="funding-bar">
                               <div
                                 className={`funded ${status.tone}`}
                                 style={{
-                                  width: `${Math.min(Math.max(fundedPercent, 0), 100)}%`,
+                                  width: `${Math.min(
+                                    Math.max(
+                                      fundedPercent,
+                                      0
+                                    ),
+                                    100
+                                  )}%`,
                                 }}
                               />
                             </div>
@@ -807,52 +1454,94 @@ export default function Dashboard() {
                           {historyOpen && (
                             <div className="history-panel">
                               <div className="history-heading">
-                                <h4>History</h4>
-                                <span>{history.length} entries</span>
+                                <h4>
+                                  History
+                                </h4>
+
+                                <span>
+                                  {
+                                    history.length
+                                  }{" "}
+                                  entries
+                                </span>
                               </div>
 
-                              {history.length === 0 ? (
-                                <p className="empty-history">No activity yet.</p>
+                              {history.length ===
+                              0 ? (
+                                <p className="empty-history">
+                                  No activity
+                                  yet.
+                                </p>
                               ) : (
                                 <div className="history-list">
-                                  {history.map((entry, index) => (
-                                    <div className="history-row" key={`${historyKey}-${index}`}>
-                                      <div>
-                                        <strong>{entry.type}</strong>
-                                        <span>{entry.date || "No date"}</span>
-                                        {entry.note ? <p>{entry.note}</p> : null}
-                                      </div>
-
-                                      <strong
-                                        className={
-                                          Number(entry.amount) >= 0 ? "amount-positive" : "amount-negative"
-                                        }
+                                  {history.map(
+                                    (
+                                      entry,
+                                      index
+                                    ) => (
+                                      <div
+                                        className="history-row"
+                                        key={`${historyKey}-${index}`}
                                       >
-                                        {money(entry.amount)}
-                                      </strong>
-                                    </div>
-                                  ))}
+                                        <div>
+                                          <strong>
+                                            {
+                                              entry.type
+                                            }
+                                          </strong>
+
+                                          <span>
+                                            {entry.date ||
+                                              "No date"}
+                                          </span>
+
+                                          {entry.note ? (
+                                            <p>
+                                              {
+                                                entry.note
+                                              }
+                                            </p>
+                                          ) : null}
+                                        </div>
+
+                                        <strong
+                                          className={
+                                            Number(
+                                              entry.amount
+                                            ) >=
+                                            0
+                                              ? "amount-positive"
+                                              : "amount-negative"
+                                          }
+                                        >
+                                          {money(
+                                            entry.amount
+                                          )}
+                                        </strong>
+                                      </div>
+                                    )
+                                  )}
                                 </div>
                               )}
                             </div>
                           )}
                         </article>
                       );
-                    })}
-                  </div>
-                )}
-              </section>
-            );
-          })}
-        </main>
-      )}
+                    }
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </main>
 
       <style>{`
         .dashboard-page {
           min-height: 100vh;
           padding: 16px;
           background:
-            radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 32%),
+            radial-gradient(circle at top left, rgba(59,130,246,0.12), transparent 30%),
             #f3f4f6;
           color: #111827;
         }
@@ -889,7 +1578,6 @@ export default function Dashboard() {
           text-decoration: none;
           font-weight: 800;
           flex-shrink: 0;
-          box-shadow: 0 8px 20px rgba(17, 24, 39, 0.16);
         }
 
         .total-card {
@@ -898,7 +1586,6 @@ export default function Dashboard() {
           border-radius: 24px;
           padding: 20px;
           margin-bottom: 16px;
-          box-shadow: 0 14px 30px rgba(17, 24, 39, 0.2);
         }
 
         .total-card span {
@@ -922,21 +1609,8 @@ export default function Dashboard() {
           font-size: 13px;
         }
 
-        .empty-card {
-          background: white;
-          border-radius: 18px;
-          padding: 18px;
-          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-        }
-
-        .empty-card h2 {
-          margin: 0 0 6px;
-          font-size: 20px;
-        }
-
-        .empty-card p {
-          margin: 0;
-          color: #6b7280;
+        .negative-money {
+          color: #ef4444 !important;
         }
 
         .bucket-list {
@@ -949,8 +1623,8 @@ export default function Dashboard() {
           background: white;
           border-radius: 22px;
           overflow: hidden;
-          box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
-          border: 1px solid rgba(226, 232, 240, 0.9);
+          border: 1px solid rgba(226,232,240,0.9);
+          box-shadow: 0 2px 10px rgba(15,23,42,0.08);
         }
 
         .bucket-header {
@@ -1040,10 +1714,10 @@ export default function Dashboard() {
         }
 
         .subbucket-card {
-          border: 1px solid #e5e7eb;
           border-radius: 18px;
           overflow: hidden;
           background: white;
+          border: 1px solid #e5e7eb;
         }
 
         .subbucket-main {
@@ -1082,7 +1756,6 @@ export default function Dashboard() {
         .subbucket-money strong {
           display: block;
           font-size: 18px;
-          letter-spacing: -0.04em;
           margin-bottom: 7px;
         }
 
@@ -1147,7 +1820,6 @@ export default function Dashboard() {
           border-radius: 999px;
           font-size: 12px;
           font-weight: 900;
-          white-space: nowrap;
         }
 
         .status-pill.green {
@@ -1160,14 +1832,6 @@ export default function Dashboard() {
 
         .status-pill.yellow {
           background: #fef3c7;
-        }
-
-        .status-pill.blue {
-          background: #dbeafe;
-        }
-
-        .negative-money {
-          color: #ef4444 !important;
         }
 
         .history-panel {
@@ -1196,8 +1860,8 @@ export default function Dashboard() {
 
         .empty-history {
           margin: 0;
-          font-size: 14px;
           color: #6b7280;
+          font-size: 14px;
         }
 
         .history-list {
