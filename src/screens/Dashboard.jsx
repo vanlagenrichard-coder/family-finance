@@ -99,7 +99,32 @@ function calculateBalances(transactions) {
         transaction.subBucket,
         Math.abs(amount)
       );
+/*
+  PAYCHECK ALLOCATIONS
+*/
 
+if (
+  transaction.type === "Paycheck" &&
+  Array.isArray(transaction.allocations)
+) {
+  transaction.allocations.forEach((allocation) => {
+    addAmount(
+      allocation.bucket,
+      allocation.subBucket,
+      Number(allocation.amount || 0)
+    );
+
+    addHistory(
+      allocation.bucket,
+      allocation.subBucket,
+      {
+        type: "Paycheck",
+        amount: Number(allocation.amount || 0),
+        date: transaction.date,
+      }
+    );
+  });
+}
       addHistory(
         transaction.bucket,
         transaction.subBucket,
@@ -154,7 +179,7 @@ function calculateBalances(transactions) {
     balances,
     historyMap,
   };
-}
+}q
 
 function getFundedPercent(amount, target) {
   if (!target || target <= 0) {
