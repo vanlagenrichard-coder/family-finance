@@ -1,62 +1,36 @@
 export const STORAGE_KEY = "family_finance_app_data";
 
-export const DEFAULT_SETTINGS = {
-  currency: "CAD",
-  step1Split: {
-    bills: 0.55,
-    savings: 0.1,
-    giving: 0.05,
-    spending: 0.3,
+export const FIXED_BUCKETS = [
+  "Bills",
+  "Savings",
+  "Giving",
+  "Spending",
+  "Goals",
+];
+
+export const defaultAppData = {
+  settings: {
+    currency: "CAD",
+    familyName: "",
   },
-  step2Split: {
-    family: 0.55,
-    wife: 0.15,
-    me: 0.15,
-    kids: 0.15,
-  },
-  subBucketSplits: {
-    savings: {
-      holiday: 0.5,
-      emergency: 0.2,
-      newCar: 0.3,
-    },
+
+  setupBuckets: FIXED_BUCKETS.map((bucket) => ({
+    id: bucket.toLowerCase(),
+    name: bucket,
+    expanded: true,
+    subBuckets: [],
+  })),
+
+  transactions: [],
+
+  paychecks: [],
+
+  metadata: {
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    version: 2,
   },
 };
-
-export const DEFAULT_BUCKETS = {
-  bills: 0,
-  savings: 0,
-  giving: 0,
-  family: 0,
-  wife: 0,
-  me: 0,
-  kids: 0,
-};
-
-export const DEFAULT_SUB_BUCKETS = {
-  savings: {
-    holiday: 0,
-    emergency: 0,
-    newCar: 0,
-  },
-};
-
-export function createDefaultAppData() {
-  return {
-    settings: {
-      ...DEFAULT_SETTINGS,
-    },
-    buckets: {
-      ...DEFAULT_BUCKETS,
-    },
-    subBuckets: {
-      ...DEFAULT_SUB_BUCKETS,
-    },
-    transactions: [],
-    paychecks: [],
-    setup: null,
-  };
-}
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -70,45 +44,241 @@ function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function safeNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function safeString(value, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function makeId(prefix = "id") {
+  return `${prefix}_${crypto.randomUUID()}`;
+}
+
+function normalizeSubBucket(subBucket) {
+  const safeSubBucket = safeObject(subBucket);
+
+  return {
+    id: safeString(safeSubBucket.id, makeId("sub")),
+
+    name: safeString(safeSubBucket.name),
+
+    percent: safeString(safeSubBucket.percent),
+
+    archived: Boolean(safeSubBucket.archived),
+
+    monthlyTarget: safeString(safeSubBucket.monthlyTarget),
+
+    dueDate: safeString(safeSubBucket.dueDate),
+
+    frequency: safeString(
+      safeSubBucket.frequency,
+      "Monthly"
+    ),
+
+    reserveGoal: safeString(safeSubBucket.reserveGoal),
+
+    targetAmount: safeString(safeSubBucket.targetAmount),
+
+    targetDate: safeString(safeSubBucket.targetDate),
+  };
+}
+
+function normalizeSetupBucket(bucket, fallbackName = "") {
+  const safeBucket = safeObject(bucket);
+
+  return {
+    id: safeString(
+      safeBucket.id,
+      fallbackName.toLowerCase()
+    ),
+
+    name: safeString(
+      safeBucket.name,
+      fallbackName
+    ),
+
+    expanded:
+      typeof safeBucket.expanded === "boolean"
+        ? safeBucket.expanded
+        : true,
+
+    subBuckets: safeArray(
+      safeBucket.subBuckets
+    ).map(normalizeSubBucket),
+  };
+}
+
+function sanitizeSetupBuckets(data) {
+  const existing = safeArray(data?.setupBuckets);
+
+  return FIXED_BUCKETS.map((bucketName) => {
+    const existingBucket = existing.find(
+      (bucket) =>
+        bucket?.name === bucketName ||
+        bucket?.id === bucketName.toLowerCase()
+    );
+
+    return normalizeSetupBucket(
+      existingBucket,
+      bucketName
+    );
+  });
+}
+
+function sanitizeTransaction(transaction) {
+  const safeTransaction = safeObject(transaction);
+
+  return {
+    id: safeString(
+      safeTransaction.id,
+      makeId("txn")
+    ),
+
+    type: safeString(
+      safeTransaction.type,
+      "Expense"
+    ),
+
+    amount: safeNumber(
+      safeTransaction.amount
+    ),
+
+    bucket: safeString(
+      safeTransaction.bucket
+    ),
+
+    subBucket: safeString(
+      safeTransaction.subBucket
+    ),
+
+    fromBucket: safeString(
+      safeTransaction.fromBucket
+    ),
+
+    fromSubBucket: safeString(
+      safeTransaction.fromSubBucket
+    ),
+
+    toBucket: safeString(
+      safeTransaction.toBucket
+    ),
+
+    toSubBucket: safeString(
+      safeTransaction.toSubBucket
+    ),
+
+    date: safeString(
+      safeTransaction.date,
+      new Date().toISOString().slice(0, 10)
+    ),
+
+    note: safeString(
+      safeTransaction.note
+    ),
+
+    createdAt: safeString(
+      safeTransaction.createdAt,
+      new Date().toISOString()
+    ),
+
+    updatedAt: safeString(
+      safeTransaction.updatedAt,
+      new Date().toISOString()
+    ),
+  };
+}
+
+function sanitizeTransactions(transactions) {
+  return safeArray(transactions).map(
+    sanitizeTransaction
+  );
+}
+
+function sanitizePaychecks(paychecks) {
+  return safeArray(paychecks).map((paycheck) => {
+    const safePaycheck = safeObject(paycheck);
+
+    return {
+      id: safeString(
+        safePaycheck.id,
+        makeId("paycheck")
+      ),
+
+      amount: safeNumber(
+        safePaycheck.amount
+      ),
+
+      date: safeString(
+        safePaycheck.date,
+        new Date().toISOString().slice(0, 10)
+      ),
+
+      note: safeString(
+        safePaycheck.note
+      ),
+    };
+  });
+}
+
 function sanitizeSettings(settings) {
   const safeSettings = safeObject(settings);
 
   return {
-    ...DEFAULT_SETTINGS,
-    ...safeSettings,
-    step1Split: {
-      ...DEFAULT_SETTINGS.step1Split,
-      ...safeObject(safeSettings.step1Split),
-    },
-    step2Split: {
-      ...DEFAULT_SETTINGS.step2Split,
-      ...safeObject(safeSettings.step2Split),
-    },
-    subBucketSplits: {
-      ...DEFAULT_SETTINGS.subBucketSplits,
-      ...safeObject(safeSettings.subBucketSplits),
-    },
-    setup: safeSettings.setup ?? null,
+    currency: safeString(
+      safeSettings.currency,
+      "CAD"
+    ),
+
+    familyName: safeString(
+      safeSettings.familyName
+    ),
+  };
+}
+
+function sanitizeMetadata(metadata) {
+  const safeMetadata = safeObject(metadata);
+
+  return {
+    createdAt: safeString(
+      safeMetadata.createdAt,
+      new Date().toISOString()
+    ),
+
+    updatedAt: new Date().toISOString(),
+
+    version: 2,
   };
 }
 
 export function sanitizeAppData(data) {
   const safeData = safeObject(data);
-  const defaultData = createDefaultAppData();
 
   return {
-    ...safeData,
-    settings: sanitizeSettings(safeData.settings),
-    buckets: {
-      ...DEFAULT_BUCKETS,
-      ...safeObject(safeData.buckets),
-    },
-    subBuckets: {
-      ...DEFAULT_SUB_BUCKETS,
-      ...safeObject(safeData.subBuckets),
-    },
-    transactions: safeArray(safeData.transactions),
-    paychecks: safeArray(safeData.paychecks),
-    setup: safeData.setup ?? safeData.settings?.setup ?? defaultData.setup,
+    settings: sanitizeSettings(
+      safeData.settings
+    ),
+
+    setupBuckets: sanitizeSetupBuckets(
+      safeData
+    ),
+
+    transactions: sanitizeTransactions(
+      safeData.transactions
+    ),
+
+    paychecks: sanitizePaychecks(
+      safeData.paychecks
+    ),
+
+    metadata: sanitizeMetadata(
+      safeData.metadata
+    ),
   };
+}
+
+export function createDefaultAppData() {
+  return structuredClone(defaultAppData);
 }

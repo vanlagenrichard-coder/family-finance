@@ -9,279 +9,78 @@ function formatCurrency(value) {
   }).format(Number(value || 0));
 }
 
-function getSetup(data) {
-  return data?.settings?.setup || data?.setup || {};
-}
-
 function getTransactions(data) {
   return Array.isArray(data?.transactions)
     ? data.transactions
     : [];
 }
 
-function normalizeText(value) {
-  return String(value || "").trim();
-}
-
-function normalizeKey(value) {
-  return normalizeText(value).toLowerCase();
-}
-
-function isArchived(item) {
-  return Boolean(
-    item?.archived ||
-      item?.isArchived ||
-      item?.inactive
-  );
-}
-
-function getBucketsFromSetup(setup) {
-  const bucketGroups = Array.isArray(
-    setup?.bucketGroups
-  )
-    ? setup.bucketGroups
-    : [];
-
-  if (bucketGroups.length > 0) {
-    return bucketGroups
-      .filter((bucket) => !isArchived(bucket))
-      .map((bucket) => ({
-        id:
-          bucket.id ||
-          bucket.name ||
-          Math.random().toString(),
-        name: normalizeText(bucket.name),
-        percent: Number(
-          bucket.percent ||
-            bucket.percentage ||
-            0
-        ),
-        subBuckets: (
-          Array.isArray(bucket.subBuckets)
-            ? bucket.subBuckets
-            : []
-        )
-          .filter(
-            (subBucket) =>
-              !isArchived(subBucket)
-          )
-          .map((subBucket) => ({
-            id:
-              subBucket.id ||
-              subBucket.name ||
-              Math.random().toString(),
-            name: normalizeText(
-              subBucket.name
-            ),
-            percent: Number(
-              subBucket.percent ||
-                subBucket.percentage ||
-                0
-            ),
-            target: Number(
-              subBucket.target ||
-                subBucket.targetAmount ||
-                subBucket.monthlyTarget ||
-                0
-            ),
-            dueDate:
-              subBucket.dueDate || "",
-            frequency:
-              subBucket.frequency || "",
-            reserveGoal: Number(
-              subBucket.reserveGoal || 0
-            ),
-          })),
-      }));
-  }
-
-  const setupGroups =
-    setup?.groups ||
-    setup?.bucketPercentages ||
-    setup?.percentages ||
-    {};
-
-  return Object.entries(setupGroups)
-    .map(([bucketName, bucketValue]) => {
-      const subBucketsRaw =
-        setup?.subBuckets?.[bucketName] ||
-        setup?.subBucketPercentages?.[
-          bucketName
-        ] ||
-        {};
-
-      const subBuckets = Object.entries(
-        subBucketsRaw
-      )
-        .map(
-          ([subBucketName, subBucketValue]) => {
-            if (
-              subBucketValue &&
-              typeof subBucketValue ===
-                "object"
-            ) {
-              return {
-                id:
-                  subBucketValue.id ||
-                  subBucketName,
-                name: normalizeText(
-                  subBucketValue.name ||
-                    subBucketName
-                ),
-                percent: Number(
-                  subBucketValue.percent ||
-                    subBucketValue.percentage ||
-                    0
-                ),
-                target: Number(
-                  subBucketValue.target ||
-                    subBucketValue.targetAmount ||
-                    subBucketValue.monthlyTarget ||
-                    0
-                ),
-                dueDate:
-                  subBucketValue.dueDate ||
-                  "",
-                frequency:
-                  subBucketValue.frequency ||
-                  "",
-                reserveGoal: Number(
-                  subBucketValue.reserveGoal ||
-                    0
-                ),
-                archived:
-                  subBucketValue.archived,
-              };
-            }
-
-            return {
-              id: subBucketName,
-              name: normalizeText(
-                subBucketName
-              ),
-              percent: Number(
-                subBucketValue || 0
-              ),
-              target: 0,
-              dueDate: "",
-              frequency: "",
-              reserveGoal: 0,
-              archived: false,
-            };
-          }
-        )
-        .filter(
-          (subBucket) =>
-            !subBucket.archived
-        );
-
-      return {
-        id: bucketName,
-        name: normalizeText(bucketName),
-        percent: Number(
-          bucketValue?.percent ||
-            bucketValue?.percentage ||
-            bucketValue ||
-            0
-        ),
-        subBuckets,
-      };
-    })
-    .filter((bucket) => bucket.name);
-}
-
-function createBalanceStructure(buckets) {
-  const structure = {};
-
-  buckets.forEach((bucket) => {
-    structure[bucket.name] = {
-      total: 0,
-      subBuckets: {},
-    };
-
-    bucket.subBuckets.forEach((subBucket) => {
-      structure[bucket.name].subBuckets[
-        subBucket.name
-      ] = 0;
-    });
-  });
-
-  return structure;
-}
-
-function ensureBucket(
-  balances,
-  bucketName,
-  subBucketName
-) {
-  if (!bucketName) return;
-
-  if (!balances[bucketName]) {
-    balances[bucketName] = {
-      total: 0,
-      subBuckets: {},
-    };
-  }
-
-  if (
-    subBucketName &&
-    balances[bucketName].subBuckets[
-      subBucketName
-    ] === undefined
-  ) {
-    balances[bucketName].subBuckets[
-      subBucketName
-    ] = 0;
-  }
-}
-
-function addToBalance(
-  balances,
-  bucketName,
-  subBucketName,
-  amount
-) {
-  if (!bucketName) return;
-
-  ensureBucket(
-    balances,
-    bucketName,
-    subBucketName
-  );
-
-  balances[bucketName].total += Number(
-    amount || 0
-  );
-
-  if (subBucketName) {
-    balances[bucketName].subBuckets[
-      subBucketName
-    ] += Number(amount || 0);
-  }
-}
-
 function calculateBalances(
   transactions,
   buckets
 ) {
-  const balances =
-    createBalanceStructure(buckets);
-
+  const balances = {};
   const historyMap = {};
 
+  function ensureBucket(
+    bucketId,
+    subBucketId
+  ) {
+    if (!balances[bucketId]) {
+      balances[bucketId] = {
+        total: 0,
+        subBuckets: {},
+      };
+    }
+
+    if (
+      subBucketId &&
+      balances[bucketId].subBuckets[
+        subBucketId
+      ] === undefined
+    ) {
+      balances[bucketId].subBuckets[
+        subBucketId
+      ] = 0;
+    }
+  }
+
+  function addAmount(
+    bucketId,
+    subBucketId,
+    amount
+  ) {
+    if (!bucketId) return;
+
+    ensureBucket(
+      bucketId,
+      subBucketId
+    );
+
+    balances[bucketId].total += Number(
+      amount || 0
+    );
+
+    if (subBucketId) {
+      balances[bucketId].subBuckets[
+        subBucketId
+      ] += Number(amount || 0);
+    }
+  }
+
   function addHistory(
-    bucketName,
-    subBucketName,
+    bucketId,
+    subBucketId,
     item
   ) {
     if (
-      !bucketName ||
-      !subBucketName
+      !bucketId ||
+      !subBucketId
     ) {
       return;
     }
 
-    const key = `${bucketName}:::${subBucketName}`;
+    const key = `${bucketId}:::${subBucketId}`;
 
     if (!historyMap[key]) {
       historyMap[key] = [];
@@ -291,206 +90,77 @@ function calculateBalances(
   }
 
   transactions.forEach((transaction) => {
-    const type = normalizeKey(
-      transaction?.type
-    );
-
     const amount = Number(
-      transaction?.amount || 0
+      transaction.amount || 0
     );
 
-    if (type === "paycheck") {
-      const allocations = Array.isArray(
-        transaction?.allocations
-      )
-        ? transaction.allocations
-        : [];
+    /*
+      EXPENSE
+    */
 
-      if (allocations.length > 0) {
-        allocations.forEach(
-          (allocation) => {
-            const bucketName =
-              normalizeText(
-                allocation.bucket
-              );
-
-            const subBucketName =
-              normalizeText(
-                allocation.subBucket
-              );
-
-            const allocationAmount =
-              Number(
-                allocation.amount || 0
-              );
-
-            addToBalance(
-              balances,
-              bucketName,
-              subBucketName,
-              allocationAmount
-            );
-
-            addHistory(
-              bucketName,
-              subBucketName,
-              {
-                type:
-                  "Paycheck Funding",
-                amount:
-                  allocationAmount,
-                date:
-                  transaction.date,
-              }
-            );
-          }
-        );
-
-        return;
-      }
-
-      buckets.forEach((bucket) => {
-        const bucketAmount =
-          amount *
-          (Number(
-            bucket.percent || 0
-          ) /
-            100);
-
-        bucket.subBuckets.forEach(
-          (subBucket) => {
-            const subAmount =
-              bucketAmount *
-              (Number(
-                subBucket.percent || 0
-              ) /
-                100);
-
-            addToBalance(
-              balances,
-              bucket.name,
-              subBucket.name,
-              subAmount
-            );
-
-            addHistory(
-              bucket.name,
-              subBucket.name,
-              {
-                type:
-                  "Paycheck Funding",
-                amount: subAmount,
-                date:
-                  transaction.date,
-              }
-            );
-          }
-        );
-      });
-
-      return;
-    }
-
-    if (type === "expense") {
-      const bucketName =
-        normalizeText(
-          transaction.bucket
-        );
-
-      const subBucketName =
-        normalizeText(
-          transaction.subBucket
-        );
-
-      addToBalance(
-        balances,
-        bucketName,
-        subBucketName,
+    if (transaction.type === "expense") {
+      addAmount(
+        transaction.bucketId,
+        transaction.subBucketId,
         -Math.abs(amount)
       );
 
       addHistory(
-        bucketName,
-        subBucketName,
+        transaction.bucketId,
+        transaction.subBucketId,
         {
           type: "Expense",
           amount: -Math.abs(amount),
           date: transaction.date,
         }
       );
-
-      return;
     }
 
-    if (type === "deposit") {
-      const bucketName =
-        normalizeText(
-          transaction.bucket
-        );
+    /*
+      INCOME / DEPOSIT
+    */
 
-      const subBucketName =
-        normalizeText(
-          transaction.subBucket
-        );
-
-      addToBalance(
-        balances,
-        bucketName,
-        subBucketName,
+    if (
+      transaction.type === "income" ||
+      transaction.type === "deposit"
+    ) {
+      addAmount(
+        transaction.bucketId,
+        transaction.subBucketId,
         Math.abs(amount)
       );
 
       addHistory(
-        bucketName,
-        subBucketName,
+        transaction.bucketId,
+        transaction.subBucketId,
         {
           type: "Deposit",
           amount: Math.abs(amount),
           date: transaction.date,
         }
       );
-
-      return;
     }
 
-    if (type === "transfer") {
-      const fromBucket =
-        normalizeText(
-          transaction.fromBucket
-        );
+    /*
+      TRANSFER
+    */
 
-      const fromSubBucket =
-        normalizeText(
-          transaction.fromSubBucket
-        );
-
-      const toBucket =
-        normalizeText(
-          transaction.toBucket
-        );
-
-      const toSubBucket =
-        normalizeText(
-          transaction.toSubBucket
-        );
-
-      addToBalance(
-        balances,
-        fromBucket,
-        fromSubBucket,
+    if (transaction.type === "transfer") {
+      addAmount(
+        transaction.fromBucketId,
+        transaction.fromSubBucketId,
         -Math.abs(amount)
       );
 
-      addToBalance(
-        balances,
-        toBucket,
-        toSubBucket,
+      addAmount(
+        transaction.toBucketId,
+        transaction.toSubBucketId,
         Math.abs(amount)
       );
 
       addHistory(
-        fromBucket,
-        fromSubBucket,
+        transaction.fromBucketId,
+        transaction.fromSubBucketId,
         {
           type: "Transfer Out",
           amount: -Math.abs(amount),
@@ -499,8 +169,8 @@ function calculateBalances(
       );
 
       addHistory(
-        toBucket,
-        toSubBucket,
+        transaction.toBucketId,
+        transaction.toSubBucketId,
         {
           type: "Transfer In",
           amount: Math.abs(amount),
@@ -603,14 +273,16 @@ export default function Dashboard() {
 
   const freshData = loadData();
 
-  const setup = getSetup(freshData);
-
   const transactions =
     getTransactions(freshData);
 
   const buckets = useMemo(() => {
-    return getBucketsFromSetup(setup);
-  }, [setup, refreshKey]);
+    return Array.isArray(
+      freshData?.buckets
+    )
+      ? freshData.buckets
+      : [];
+  }, [freshData, refreshKey]);
 
   const {
     balances,
@@ -620,7 +292,7 @@ export default function Dashboard() {
       transactions,
       buckets
     );
-  }, [transactions, buckets, refreshKey]);
+  }, [transactions, buckets]);
 
   const totalMoney = useMemo(() => {
     return buckets.reduce(
@@ -628,7 +300,7 @@ export default function Dashboard() {
         return (
           total +
           Number(
-            balances?.[bucket.name]
+            balances?.[bucket.id]
               ?.total || 0
           )
         );
@@ -637,11 +309,11 @@ export default function Dashboard() {
     );
   }, [buckets, balances]);
 
-  function toggleBucket(bucketName) {
+  function toggleBucket(bucketId) {
     setExpandedBuckets((current) => ({
       ...current,
-      [bucketName]:
-        !current[bucketName],
+      [bucketId]:
+        !current[bucketId],
     }));
   }
 
@@ -692,14 +364,14 @@ export default function Dashboard() {
       <main className="bucket-list">
         {buckets.map((bucket) => {
           const bucketBalance =
-            balances?.[bucket.name] || {
+            balances?.[bucket.id] || {
               total: 0,
               subBuckets: {},
             };
 
           const expanded =
             expandedBuckets[
-              bucket.name
+              bucket.id
             ];
 
           return (
@@ -712,7 +384,7 @@ export default function Dashboard() {
                 className="bucket-header"
                 onClick={() =>
                   toggleBucket(
-                    bucket.name
+                    bucket.id
                   )
                 }
               >
@@ -750,7 +422,7 @@ export default function Dashboard() {
                         Number(
                           bucketBalance
                             ?.subBuckets?.[
-                            subBucket.name
+                            subBucket.id
                           ] || 0
                         );
 
@@ -766,7 +438,7 @@ export default function Dashboard() {
                           fundedPercent
                         );
 
-                      const historyKey = `${bucket.name}:::${subBucket.name}`;
+                      const historyKey = `${bucket.id}:::${subBucket.id}`;
 
                       const history =
                         historyMap[
@@ -849,8 +521,7 @@ export default function Dashboard() {
                             </div>
 
                             <div className="subbucket-meta">
-                              {subBucket
-                                .dueDate ? (
+                              {subBucket.dueDate ? (
                                 <span>
                                   Due{" "}
                                   {
@@ -859,8 +530,7 @@ export default function Dashboard() {
                                 </span>
                               ) : null}
 
-                              {subBucket
-                                .frequency ? (
+                              {subBucket.frequency ? (
                                 <span>
                                   {
                                     subBucket.frequency
@@ -874,8 +544,7 @@ export default function Dashboard() {
                                   {
                                     subBucket.reserveGoal
                                   }{" "}
-                                  month
-                                  reserve
+                                  month reserve
                                 </span>
                               ) : null}
                             </div>
@@ -987,25 +656,6 @@ export default function Dashboard() {
           margin-bottom: 18px;
         }
 
-        .top-card span {
-          display: block;
-          color: #d1d5db;
-          font-size: 14px;
-          margin-bottom: 8px;
-        }
-
-        .top-card strong {
-          display: block;
-          font-size: 40px;
-          line-height: 1;
-        }
-
-        .top-card p {
-          margin: 10px 0 0;
-          color: #d1d5db;
-          font-size: 13px;
-        }
-
         .bucket-list {
           display: flex;
           flex-direction: column;
@@ -1029,21 +679,6 @@ export default function Dashboard() {
           justify-content: space-between;
           text-align: left;
           cursor: pointer;
-        }
-
-        .bucket-header h2 {
-          margin: 0;
-          font-size: 22px;
-        }
-
-        .bucket-header p {
-          margin: 4px 0 0;
-          color: #6b7280;
-          font-size: 13px;
-        }
-
-        .bucket-header strong {
-          font-size: 22px;
         }
 
         .subbucket-list {
@@ -1074,26 +709,6 @@ export default function Dashboard() {
           display: flex;
           justify-content: space-between;
           gap: 12px;
-        }
-
-        .subbucket-top h3 {
-          margin: 0;
-          font-size: 18px;
-        }
-
-        .subbucket-top p {
-          margin: 4px 0 0;
-          font-size: 13px;
-          color: #6b7280;
-        }
-
-        .subbucket-right {
-          text-align: right;
-        }
-
-        .subbucket-right strong {
-          display: block;
-          margin-bottom: 6px;
         }
 
         .status {
@@ -1164,19 +779,6 @@ export default function Dashboard() {
           border-bottom: 1px solid #f3f4f6;
         }
 
-        .history-row:last-child {
-          margin-bottom: 0;
-          padding-bottom: 0;
-          border-bottom: 0;
-        }
-
-        .history-row span {
-          display: block;
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 4px;
-        }
-
         .positive {
           color: #166534;
         }
@@ -1189,13 +791,6 @@ export default function Dashboard() {
           margin: 0;
           color: #6b7280;
           font-size: 14px;
-        }
-
-        @media (min-width: 768px) {
-          .dashboard-page {
-            max-width: 960px;
-            margin: 0 auto;
-          }
         }
       `}</style>
     </div>

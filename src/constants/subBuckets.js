@@ -1,8 +1,40 @@
-// src/constants/subBuckets.js
-export const SUB_BUCKETS = {
-  savings: [
-    { id: "holiday", label: "Holiday", percentage: 0.5 },
-    { id: "emergency", label: "Emergency", percentage: 0.2 },
-    { id: "newCar", label: "New Car", percentage: 0.3 }
-  ]
-};
+export function getActiveSubBuckets(
+  setupBuckets,
+  bucketName
+) {
+  const bucket = setupBuckets.find(
+    (item) => item.name === bucketName
+  );
+
+  if (!bucket) {
+    return [];
+  }
+
+  return bucket.subBuckets.filter(
+    (subBucket) => !subBucket.archived
+  );
+}
+
+export function getSubBucketNames(
+  setupBuckets,
+  bucketName
+) {
+  return getActiveSubBuckets(
+    setupBuckets,
+    bucketName
+  ).map((subBucket) => subBucket.name);
+}
+
+export function findSubBucket(
+  setupBuckets,
+  bucketName,
+  subBucketName
+) {
+  return getActiveSubBuckets(
+    setupBuckets,
+    bucketName
+  ).find(
+    (subBucket) =>
+      subBucket.name === subBucketName
+  );
+}
