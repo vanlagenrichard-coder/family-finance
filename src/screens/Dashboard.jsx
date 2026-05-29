@@ -15,72 +15,46 @@ function getTransactions(data) {
     : [];
 }
 
-function calculateBalances(
-  transactions,
-  buckets
-) {
+function calculateBalances(transactions) {
   const balances = {};
   const historyMap = {};
 
-  function ensureBucket(
-    bucketId,
-    subBucketId
-  ) {
-    if (!balances[bucketId]) {
-      balances[bucketId] = {
+  function ensureBucket(bucketName, subBucketName) {
+    if (!bucketName) return;
+
+    if (!balances[bucketName]) {
+      balances[bucketName] = {
         total: 0,
         subBuckets: {},
       };
     }
 
     if (
-      subBucketId &&
-      balances[bucketId].subBuckets[
-        subBucketId
-      ] === undefined
+      subBucketName &&
+      balances[bucketName].subBuckets[subBucketName] === undefined
     ) {
-      balances[bucketId].subBuckets[
-        subBucketId
-      ] = 0;
+      balances[bucketName].subBuckets[subBucketName] = 0;
     }
   }
 
-  function addAmount(
-    bucketId,
-    subBucketId,
-    amount
-  ) {
-    if (!bucketId) return;
+  function addAmount(bucketName, subBucketName, amount) {
+    if (!bucketName) return;
 
-    ensureBucket(
-      bucketId,
-      subBucketId
-    );
+    ensureBucket(bucketName, subBucketName);
 
-    balances[bucketId].total += Number(
-      amount || 0
-    );
+    balances[bucketName].total += Number(amount || 0);
 
-    if (subBucketId) {
-      balances[bucketId].subBuckets[
-        subBucketId
-      ] += Number(amount || 0);
+    if (subBucketName) {
+      balances[bucketName].subBuckets[subBucketName] += Number(amount || 0);
     }
   }
 
-  function addHistory(
-    bucketId,
-    subBucketId,
-    item
-  ) {
-    if (
-      !bucketId ||
-      !subBucketId
-    ) {
+  function addHistory(bucketName, subBucketName, item) {
+    if (!bucketName || !subBucketName) {
       return;
     }
 
-    const key = `${bucketId}:::${subBucketId}`;
+    const key = `${bucketName}:::${subBucketName}`;
 
     if (!historyMap[key]) {
       historyMap[key] = [];
@@ -90,24 +64,22 @@ function calculateBalances(
   }
 
   transactions.forEach((transaction) => {
-    const amount = Number(
-      transaction.amount || 0
-    );
+    const amount = Number(transaction.amount || 0);
 
     /*
       EXPENSE
     */
 
-    if (transaction.type === "expense") {
+    if (transaction.type === "Expense") {
       addAmount(
-        transaction.bucketId,
-        transaction.subBucketId,
+        transaction.bucket,
+        transaction.subBucket,
         -Math.abs(amount)
       );
 
       addHistory(
-        transaction.bucketId,
-        transaction.subBucketId,
+        transaction.bucket,
+        transaction.subBucket,
         {
           type: "Expense",
           amount: -Math.abs(amount),
@@ -117,24 +89,24 @@ function calculateBalances(
     }
 
     /*
-      INCOME / DEPOSIT
+      DEPOSIT / PAYCHECK
     */
 
     if (
-      transaction.type === "income" ||
-      transaction.type === "deposit"
+      transaction.type === "Deposit" ||
+      transaction.type === "Paycheck"
     ) {
       addAmount(
-        transaction.bucketId,
-        transaction.subBucketId,
+        transaction.bucket,
+        transaction.subBucket,
         Math.abs(amount)
       );
 
       addHistory(
-        transaction.bucketId,
-        transaction.subBucketId,
+        transaction.bucket,
+        transaction.subBucket,
         {
-          type: "Deposit",
+          type: transaction.type,
           amount: Math.abs(amount),
           date: transaction.date,
         }
@@ -145,22 +117,22 @@ function calculateBalances(
       TRANSFER
     */
 
-    if (transaction.type === "transfer") {
+    if (transaction.type === "Transfer") {
       addAmount(
-        transaction.fromBucketId,
-        transaction.fromSubBucketId,
+        transaction.fromBucket,
+        transaction.fromSubBucket,
         -Math.abs(amount)
       );
 
       addAmount(
-        transaction.toBucketId,
-        transaction.toSubBucketId,
+        transaction.toBucket,
+        transaction.toSubBucket,
         Math.abs(amount)
       );
 
       addHistory(
-        transaction.fromBucketId,
-        transaction.fromSubBucketId,
+        transaction.fromBucket,
+        transaction.fromSubBucket,
         {
           type: "Transfer Out",
           amount: -Math.abs(amount),
@@ -169,8 +141,8 @@ function calculateBalances(
       );
 
       addHistory(
-        transaction.toBucketId,
-        transaction.toSubBucketId,
+        transaction.toBucket,
+        transaction.toSubBucket,
         {
           type: "Transfer In",
           amount: Math.abs(amount),
@@ -180,17 +152,13 @@ function calculateBalances(
     }
   });
 
-  Object.keys(historyMap).forEach(
-    (key) => {
-      historyMap[key].sort((a, b) =>
-        String(
-          b.date || ""
-        ).localeCompare(
-          String(a.date || "")
-        )
-      );
-    }
-  );
+  Object.keys(historyMap).forEach((key) => {
+    historyMap[key].sort((a, b) =>
+      String(b.date || "").localeCompare(
+        String(a.date || "")
+      )
+    );
+  });
 
   return {
     balances,
@@ -198,10 +166,7 @@ function calculateBalances(
   };
 }
 
-function getFundedPercent(
-  amount,
-  target
-) {
+function getFundedPercent(amount, target) {
   if (!target || target <= 0) {
     return amount >= 0 ? 100 : 0;
   }
@@ -212,10 +177,7 @@ function getFundedPercent(
   );
 }
 
-function getStatusColor(
-  amount,
-  fundedPercent
-) {
+function getStatusColor(amount, fundedPercent) {
   if (amount < 0) {
     return "red";
   }
@@ -276,10 +238,19 @@ export default function Dashboard() {
   const transactions =
     getTransactions(freshData);
 
+  /*
+    IMPORTANT FIX
+    Uses setupBuckets from Setup page
+  */
+
   const buckets = useMemo(() => {
-    return Array.isArray(
-      freshData?.buckets
-    )
+    if (
+      Array.isArray(freshData?.setupBuckets)
+    ) {
+      return freshData.setupBuckets;
+    }
+
+    return Array.isArray(freshData?.buckets)
       ? freshData.buckets
       : [];
   }, [freshData, refreshKey]);
@@ -288,11 +259,8 @@ export default function Dashboard() {
     balances,
     historyMap,
   } = useMemo(() => {
-    return calculateBalances(
-      transactions,
-      buckets
-    );
-  }, [transactions, buckets]);
+    return calculateBalances(transactions);
+  }, [transactions]);
 
   const totalMoney = useMemo(() => {
     return buckets.reduce(
@@ -300,7 +268,7 @@ export default function Dashboard() {
         return (
           total +
           Number(
-            balances?.[bucket.id]
+            balances?.[bucket.name]
               ?.total || 0
           )
         );
@@ -364,7 +332,7 @@ export default function Dashboard() {
       <main className="bucket-list">
         {buckets.map((bucket) => {
           const bucketBalance =
-            balances?.[bucket.id] || {
+            balances?.[bucket.name] || {
               total: 0,
               subBuckets: {},
             };
@@ -422,14 +390,14 @@ export default function Dashboard() {
                         Number(
                           bucketBalance
                             ?.subBuckets?.[
-                            subBucket.id
+                            subBucket.name
                           ] || 0
                         );
 
                       const fundedPercent =
                         getFundedPercent(
                           amount,
-                          subBucket.target
+                          subBucket.targetAmount
                         );
 
                       const status =
@@ -438,7 +406,7 @@ export default function Dashboard() {
                           fundedPercent
                         );
 
-                      const historyKey = `${bucket.id}:::${subBucket.id}`;
+                      const historyKey = `${bucket.name}:::${subBucket.name}`;
 
                       const history =
                         historyMap[
@@ -496,14 +464,7 @@ export default function Dashboard() {
                                 <span
                                   className={`status ${status}`}
                                 >
-                                  {subBucket.target >
-                                  0
-                                    ? `${formatCurrency(
-                                        amount
-                                      )} / ${formatCurrency(
-                                        subBucket.target
-                                      )}`
-                                    : "Available"}
+                                  Available
                                 </span>
                               </div>
                             </div>
@@ -518,35 +479,6 @@ export default function Dashboard() {
                                   )}%`,
                                 }}
                               />
-                            </div>
-
-                            <div className="subbucket-meta">
-                              {subBucket.dueDate ? (
-                                <span>
-                                  Due{" "}
-                                  {
-                                    subBucket.dueDate
-                                  }
-                                </span>
-                              ) : null}
-
-                              {subBucket.frequency ? (
-                                <span>
-                                  {
-                                    subBucket.frequency
-                                  }
-                                </span>
-                              ) : null}
-
-                              {subBucket.reserveGoal >
-                              0 ? (
-                                <span>
-                                  {
-                                    subBucket.reserveGoal
-                                  }{" "}
-                                  month reserve
-                                </span>
-                              ) : null}
                             </div>
                           </button>
 
@@ -747,21 +679,6 @@ export default function Dashboard() {
 
         .progress-fill {
           height: 100%;
-        }
-
-        .subbucket-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 12px;
-        }
-
-        .subbucket-meta span {
-          background: #f3f4f6;
-          padding: 4px 8px;
-          border-radius: 999px;
-          font-size: 11px;
-          color: #4b5563;
         }
 
         .history-panel {
