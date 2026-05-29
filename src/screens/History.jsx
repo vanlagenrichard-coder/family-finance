@@ -27,6 +27,24 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
+function getPercent(item) {
+  const rawValue =
+    item?.percent ?? item?.percentage ?? item?.value ?? item?.split ?? null;
+
+  const numberValue = Number(rawValue);
+
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function getSubBucketList(bucket) {
+  if (Array.isArray(bucket?.subBuckets)) return bucket.subBuckets;
+  if (Array.isArray(bucket?.subcategories)) return bucket.subcategories;
+  if (Array.isArray(bucket?.children)) return bucket.children;
+  if (Array.isArray(bucket?.items)) return bucket.items;
+
+  return [];
+}
+
 function getSetupBuckets(data) {
   if (Array.isArray(data?.setupBuckets)) return data.setupBuckets;
   if (Array.isArray(data?.buckets)) return data.buckets;
@@ -36,10 +54,21 @@ function getSetupBuckets(data) {
   const settingsSetup = data?.settings?.setup || {};
   const setup = data?.setup || {};
 
-  if (Array.isArray(settingsSetup?.bucketGroups)) return settingsSetup.bucketGroups;
-  if (Array.isArray(settingsSetup?.buckets)) return settingsSetup.buckets;
-  if (Array.isArray(setup?.bucketGroups)) return setup.bucketGroups;
-  if (Array.isArray(setup?.buckets)) return setup.buckets;
+  if (Array.isArray(settingsSetup?.bucketGroups)) {
+    return settingsSetup.bucketGroups;
+  }
+
+  if (Array.isArray(settingsSetup?.buckets)) {
+    return settingsSetup.buckets;
+  }
+
+  if (Array.isArray(setup?.bucketGroups)) {
+    return setup.bucketGroups;
+  }
+
+  if (Array.isArray(setup?.buckets)) {
+    return setup.buckets;
+  }
 
   return DEFAULT_SETUP_BUCKETS;
 }
@@ -50,17 +79,15 @@ function normalizeBuckets(data) {
     .map((bucket) => ({
       id: bucket.id || bucket.name || makeId(),
       name: cleanText(bucket.name || bucket.label || bucket.id),
-      percent: Number(bucket.percent || bucket.percentage || 0),
-      subBuckets: Array.isArray(bucket.subBuckets)
-        ? bucket.subBuckets
-            .filter((subBucket) => !isArchived(subBucket))
-            .map((subBucket) => ({
-              id: subBucket.id || subBucket.name || makeId(),
-              name: cleanText(subBucket.name || subBucket.label || subBucket.id),
-              percent: Number(subBucket.percent || subBucket.percentage || 0),
-            }))
-            .filter((subBucket) => subBucket.name)
-        : [],
+      percent: getPercent(bucket),
+      subBuckets: getSubBucketList(bucket)
+        .filter((subBucket) => !isArchived(subBucket))
+        .map((subBucket) => ({
+          id: subBucket.id || subBucket.name || makeId(),
+          name: cleanText(subBucket.name || subBucket.label || subBucket.id),
+          percent: getPercent(subBucket),
+        }))
+        .filter((subBucket) => subBucket.name),
     }))
     .filter((bucket) => bucket.name);
 }
@@ -172,30 +199,30 @@ function History() {
         ? current.fromBucket
         : firstBucketName(activeBuckets);
 
-      const toBucket = activeBuckets.some((item) => item.name === current.toBucket)
+      const toBucket = activeBuckets.some(
+        (item) => item.name === current.toBucket
+      )
         ? current.toBucket
         : activeBuckets[1]?.name || firstBucketName(activeBuckets);
 
-      const subBucket =
-        getSubBucketsForBucket(activeBuckets, bucket).some(
-          (item) => item.name === current.subBucket
-        )
-          ? current.subBucket
-          : firstSubBucketName(activeBuckets, bucket);
+      const subBucket = getSubBucketsForBucket(activeBuckets, bucket).some(
+        (item) => item.name === current.subBucket
+      )
+        ? current.subBucket
+        : firstSubBucketName(activeBuckets, bucket);
 
-      const fromSubBucket =
-        getSubBucketsForBucket(activeBuckets, fromBucket).some(
-          (item) => item.name === current.fromSubBucket
-        )
-          ? current.fromSubBucket
-          : firstSubBucketName(activeBuckets, fromBucket);
+      const fromSubBucket = getSubBucketsForBucket(
+        activeBuckets,
+        fromBucket
+      ).some((item) => item.name === current.fromSubBucket)
+        ? current.fromSubBucket
+        : firstSubBucketName(activeBuckets, fromBucket);
 
-      const toSubBucket =
-        getSubBucketsForBucket(activeBuckets, toBucket).some(
-          (item) => item.name === current.toSubBucket
-        )
-          ? current.toSubBucket
-          : firstSubBucketName(activeBuckets, toBucket);
+      const toSubBucket = getSubBucketsForBucket(activeBuckets, toBucket).some(
+        (item) => item.name === current.toSubBucket
+      )
+        ? current.toSubBucket
+        : firstSubBucketName(activeBuckets, toBucket);
 
       return {
         ...current,
@@ -244,13 +271,35 @@ function History() {
   function buildPaycheckAllocations(amount) {
     const allocations = [];
 
+    if (!activeBuckets.length) {
+      return allocations;
+    }
+
+    const bucketPercentTotal = activeBuckets.reduce(
+      (total, bucket) => total + Number(bucket.percent || 0),
+      0
+    );
+
     activeBuckets.forEach((bucket) => {
-      const bucketPercent = Number(bucket.percent || 0);
+      const bucketPercent =
+        bucketPercentTotal > 0
+          ? Number(bucket.percent || 0)
+          : 100 / activeBuckets.length;
+
       const bucketAmount = amount * (bucketPercent / 100);
 
       if (Array.isArray(bucket.subBuckets) && bucket.subBuckets.length > 0) {
+        const subPercentTotal = bucket.subBuckets.reduce(
+          (total, subBucket) => total + Number(subBucket.percent || 0),
+          0
+        );
+
         bucket.subBuckets.forEach((subBucket) => {
-          const subPercent = Number(subBucket.percent || 0);
+          const subPercent =
+            subPercentTotal > 0
+              ? Number(subBucket.percent || 0)
+              : 100 / bucket.subBuckets.length;
+
           const subAmount = bucketAmount * (subPercent / 100);
 
           allocations.push({
@@ -295,6 +344,13 @@ function History() {
     };
 
     if (form.type === "Paycheck") {
+      const allocations = buildPaycheckAllocations(amount);
+
+      if (!allocations.length) {
+        alert("Set up at least one active bucket before adding a paycheck.");
+        return null;
+      }
+
       return {
         ...baseTransaction,
         bucket: "",
@@ -303,7 +359,7 @@ function History() {
         fromSubBucket: "",
         toBucket: "",
         toSubBucket: "",
-        allocations: buildPaycheckAllocations(amount),
+        allocations: allocations,
       };
     }
 
@@ -462,7 +518,9 @@ function History() {
         <div>
           <p className="eyebrow">Family Finance</p>
           <h1>History</h1>
-          <p className="subtitle">Add paychecks, expenses, deposits, and transfers.</p>
+          <p className="subtitle">
+            Add paychecks, expenses, deposits, and transfers.
+          </p>
         </div>
 
         <Link className="home-button" to="/">
@@ -669,7 +727,9 @@ function History() {
               <article className="transaction-card" key={transaction.id}>
                 <div className="transaction-main">
                   <div>
-                    <span className={`type-pill ${transaction.type.toLowerCase()}`}>
+                    <span
+                      className={`type-pill ${transaction.type.toLowerCase()}`}
+                    >
                       {transaction.type}
                     </span>
 
@@ -688,7 +748,10 @@ function History() {
                 </div>
 
                 <div className="transaction-actions">
-                  <button type="button" onClick={() => editTransaction(transaction)}>
+                  <button
+                    type="button"
+                    onClick={() => editTransaction(transaction)}
+                  >
                     Edit
                   </button>
 
