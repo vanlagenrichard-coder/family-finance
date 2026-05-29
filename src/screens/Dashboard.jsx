@@ -10,9 +10,36 @@ function formatCurrency(value) {
 }
 
 function getTransactions(data) {
-  return Array.isArray(data?.transactions)
-    ? data.transactions
-    : [];
+  return Array.isArray(data?.transactions) ? data.transactions : [];
+}
+
+function getSetup(data) {
+  if (Array.isArray(data?.setupBuckets)) return data.setupBuckets;
+  if (Array.isArray(data?.buckets)) return data.buckets;
+  if (Array.isArray(data?.settings?.setup)) return data.settings.setup;
+  if (Array.isArray(data?.setup)) return data.setup;
+  return [];
+}
+
+function normalizeBuckets(data) {
+  return getSetup(data)
+    .filter((bucket) => !bucket.archived && !bucket.isArchived)
+    .map((bucket) => ({
+      ...bucket,
+      name: bucket.name,
+      subBuckets: Array.isArray(bucket.subBuckets)
+        ? bucket.subBuckets
+            .filter((subBucket) => !subBucket.archived && !subBucket.isArchived)
+            .map((subBucket) => ({
+              ...subBucket,
+              name: subBucket.name,
+              percent: Number(subBucket.percent || 0),
+              targetAmount: Number(
+                subBucket.monthlyTarget ?? subBucket.targetAmount ?? 0
+              ),
+            }))
+        : [],
+    }));
 }
 
 function calculateBalances(transactions) {
@@ -64,114 +91,61 @@ function calculateBalances(transactions) {
   transactions.forEach((transaction) => {
     const amount = Number(transaction.amount || 0);
 
-    /*
-      EXPENSE
-    */
-
     if (transaction.type === "Expense") {
-      add(
-        transaction.bucket,
-        transaction.subBucket,
-        -Math.abs(amount)
-      );
+      add(transaction.bucket, transaction.subBucket, -Math.abs(amount));
 
-      addHistory(
-        transaction.bucket,
-        transaction.subBucket,
-        {
-          type: "Expense",
-          amount: -Math.abs(amount),
-          date: transaction.date,
-        }
-      );
-    }
-
-    /*
-      DEPOSIT
-    */
-
-    if (
-      transaction.type === "Deposit" ||
-      transaction.type === "Paycheck"
-    ) {
-      add(
-        transaction.bucket,
-        transaction.subBucket,
-        Math.abs(amount)
-      );
-/*
-  PAYCHECK ALLOCATIONS
-*/
-
-if (
-  transaction.type === "Paycheck" &&
-  Array.isArray(transaction.allocations)
-) {
-  transaction.allocations.forEach((allocation) => {
-    addAmount(
-      allocation.bucket,
-      allocation.subBucket,
-      Number(allocation.amount || 0)
-    );
-
-    addHistory(
-      allocation.bucket,
-      allocation.subBucket,
-      {
-        type: "Paycheck",
-        amount: Number(allocation.amount || 0),
+      addHistory(transaction.bucket, transaction.subBucket, {
+        type: "Expense",
+        amount: -Math.abs(amount),
         date: transaction.date,
-      }
-    );
-  });
-}
-      addHistory(
-        transaction.bucket,
-        transaction.subBucket,
-        {
-          type: transaction.type,
-          amount: Math.abs(amount),
-          date: transaction.date,
-        }
-      );
+      });
     }
 
-    /*
-      TRANSFER
-    */
+    if (transaction.type === "Deposit" || transaction.type === "Paycheck") {
+      add(transaction.bucket, transaction.subBucket, Math.abs(amount));
+
+      addHistory(transaction.bucket, transaction.subBucket, {
+        type: transaction.type,
+        amount: Math.abs(amount),
+        date: transaction.date,
+      });
+
+      if (
+        transaction.type === "Paycheck" &&
+        Array.isArray(transaction.allocations)
+      ) {
+        transaction.allocations.forEach((allocation) => {
+          add(
+            allocation.bucket,
+            allocation.subBucket,
+            Number(allocation.amount || 0)
+          );
+
+          addHistory(allocation.bucket, allocation.subBucket, {
+            type: "Paycheck",
+            amount: Number(allocation.amount || 0),
+            date: transaction.date,
+          });
+        });
+      }
+    }
 
     if (transaction.type === "Transfer") {
-      add(
-        transaction.fromBucket,
-        transaction.fromSubBucket,
-        -Math.abs(amount)
-      );
+      add(transaction.fromBucket, transaction.fromSubBucket, -Math.abs(amount));
 
-      add(
-        transaction.toBucket,
-        transaction.toSubBucket,
-        Math.abs(amount)
-      );
+      add(transaction.toBucket, transaction.toSubBucket, Math.abs(amount));
 
-      addHistory(
-        transaction.fromBucket,
-        transaction.fromSubBucket,
-        {
-          type: "Transfer Out",
-          amount: -Math.abs(amount),
-          date: transaction.date,
-        }
-      );
+      addHistory(transaction.fromBucket, transaction.fromSubBucket, {
+        type: "Transfer Out",
+        amount: -Math.abs(amount),
+        date: transaction.date,
+      });
 
-      addHistory(
-        transaction.toBucket,
-        transaction.toSubBucket,
-        {
-          type: "Transfer In",
-          amount: Math.abs(amount),
-          date: transaction.date,
-        }
-      );
+      addHistory(transaction.toBucket, transaction.toSubBucket, {
+        type: "Transfer In",
+        amount: Math.abs(amount),
+        date: transaction.date,
+      });
     }
   });
 
@@ -179,17 +153,14 @@ if (
     balances,
     historyMap,
   };
-}q
+}
 
 function getFundedPercent(amount, target) {
   if (!target || target <= 0) {
     return amount >= 0 ? 100 : 0;
   }
 
-  return Math.max(
-    0,
-    Math.round((amount / target) * 100)
-  );
+  return Math.max(0, Math.round((amount / target) * 100));
 }
 
 function getStatusColor(amount, fundedPercent) {
@@ -209,14 +180,9 @@ function getStatusColor(amount, fundedPercent) {
 }
 
 export default function Dashboard() {
-  const [refreshKey, setRefreshKey] =
-    useState(0);
-
-  const [expandedBuckets, setExpandedBuckets] =
-    useState({});
-
-  const [expandedHistory, setExpandedHistory] =
-    useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [expandedBuckets, setExpandedBuckets] = useState({});
+  const [expandedHistory, setExpandedHistory] = useState("");
 
   useEffect(() => {
     function refresh() {
@@ -225,330 +191,186 @@ export default function Dashboard() {
 
     refresh();
 
-    window.addEventListener(
-      "focus",
-      refresh
-    );
-
-    window.addEventListener(
-      "pageshow",
-      refresh
-    );
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("app-data-updated", refresh);
 
     return () => {
-      window.removeEventListener(
-        "focus",
-        refresh
-      );
-
-      window.removeEventListener(
-        "pageshow",
-        refresh
-      );
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("app-data-updated", refresh);
     };
   }, []);
 
   const freshData = loadData();
 
-  const transactions =
-    getTransactions(freshData);
-
-  /*
-    IMPORTANT FIX
-    Uses setupBuckets from Setup page
-  */
+  const transactions = getTransactions(freshData);
 
   const buckets = useMemo(() => {
-    if (
-      Array.isArray(freshData?.setupBuckets)
-    ) {
-      return freshData.setupBuckets;
-    }
-
-    return Array.isArray(freshData?.buckets)
-      ? freshData.buckets
-      : [];
+    return normalizeBuckets(freshData);
   }, [freshData, refreshKey]);
 
-  const {
-    balances,
-    historyMap,
-  } = useMemo(() => {
+  const { balances, historyMap } = useMemo(() => {
     return calculateBalances(transactions);
   }, [transactions]);
 
   const totalMoney = useMemo(() => {
-    return buckets.reduce(
-      (total, bucket) => {
-        return (
-          total +
-          Number(
-            balances?.[bucket.name]
-              ?.total || 0
-          )
-        );
-      },
-      0
-    );
+    return buckets.reduce((total, bucket) => {
+      return total + Number(balances?.[bucket.name]?.total || 0);
+    }, 0);
   }, [buckets, balances]);
 
   function toggleBucket(bucketId) {
     setExpandedBuckets((current) => ({
       ...current,
-      [bucketId]:
-        !current[bucketId],
+      [bucketId]: !current[bucketId],
     }));
   }
 
   function toggleHistory(key) {
-    setExpandedHistory((current) =>
-      current === key ? "" : key
-    );
+    setExpandedHistory((current) => (current === key ? "" : key));
   }
 
   return (
     <div className="dashboard-page">
       <header className="header">
-        <Link
-          to="/"
-          className="home-button"
-        >
+        <Link to="/" className="home-button">
           Home
         </Link>
 
         <div>
           <h1>Balances</h1>
-
-          <p>
-            Live calculated balances
-          </p>
+          <p>Live calculated balances</p>
         </div>
       </header>
 
       <section className="top-card">
         <span>Total Money</span>
 
-        <strong
-          className={
-            totalMoney < 0
-              ? "negative"
-              : ""
-          }
-        >
+        <strong className={totalMoney < 0 ? "negative" : ""}>
           {formatCurrency(totalMoney)}
         </strong>
 
-        <p>
-          Transactions are the source
-          of truth
-        </p>
+        <p>Transactions are the source of truth</p>
       </section>
 
       <main className="bucket-list">
         {buckets.map((bucket) => {
-          const bucketBalance =
-            balances?.[bucket.name] || {
-              total: 0,
-              subBuckets: {},
-            };
+          const bucketBalance = balances?.[bucket.name] || {
+            total: 0,
+            subBuckets: {},
+          };
 
-          const expanded =
-            expandedBuckets[
-              bucket.id
-            ];
+          const expanded = expandedBuckets[bucket.id];
 
           return (
-            <section
-              key={bucket.id}
-              className="bucket-card"
-            >
+            <section key={bucket.id} className="bucket-card">
               <button
                 type="button"
                 className="bucket-header"
-                onClick={() =>
-                  toggleBucket(
-                    bucket.id
-                  )
-                }
+                onClick={() => toggleBucket(bucket.id)}
               >
                 <div>
                   <h2>{bucket.name}</h2>
 
-                  <p>
-                    {
-                      bucket.subBuckets
-                        .length
-                    }{" "}
-                    sub-buckets
-                  </p>
+                  <p>{bucket.subBuckets.length} sub-buckets</p>
                 </div>
 
                 <strong
-                  className={
-                    bucketBalance.total <
-                    0
-                      ? "negative"
-                      : ""
-                  }
+                  className={bucketBalance.total < 0 ? "negative" : ""}
                 >
-                  {formatCurrency(
-                    bucketBalance.total
-                  )}
+                  {formatCurrency(bucketBalance.total)}
                 </strong>
               </button>
 
               {expanded && (
                 <div className="subbucket-list">
-                  {bucket.subBuckets.map(
-                    (subBucket) => {
-                      const amount =
-                        Number(
-                          bucketBalance
-                            ?.subBuckets?.[
-                            subBucket.name
-                          ] || 0
-                        );
+                  {bucket.subBuckets.map((subBucket) => {
+                    const amount = Number(
+                      bucketBalance?.subBuckets?.[subBucket.name] || 0
+                    );
 
-                      const fundedPercent =
-                        getFundedPercent(
-                          amount,
-                          subBucket.targetAmount
-                        );
+                    const fundedPercent = getFundedPercent(
+                      amount,
+                      subBucket.targetAmount
+                    );
 
-                      const status =
-                        getStatusColor(
-                          amount,
-                          fundedPercent
-                        );
+                    const status = getStatusColor(amount, fundedPercent);
 
-                      const historyKey = `${bucket.name}:::${subBucket.name}`;
+                    const historyKey = `${bucket.name}:::${subBucket.name}`;
 
-                      const history =
-                        historyMap[
-                          historyKey
-                        ] || [];
+                    const history = historyMap[historyKey] || [];
 
-                      const historyExpanded =
-                        expandedHistory ===
-                        historyKey;
+                    const historyExpanded = expandedHistory === historyKey;
 
-                      return (
-                        <article
-                          key={
-                            subBucket.id
-                          }
-                          className="subbucket-card"
+                    return (
+                      <article key={subBucket.id} className="subbucket-card">
+                        <button
+                          type="button"
+                          className="subbucket-button"
+                          onClick={() => toggleHistory(historyKey)}
                         >
-                          <button
-                            type="button"
-                            className="subbucket-button"
-                            onClick={() =>
-                              toggleHistory(
-                                historyKey
-                              )
-                            }
-                          >
-                            <div className="subbucket-top">
-                              <div>
-                                <h3>
-                                  {
-                                    subBucket.name
-                                  }
-                                </h3>
+                          <div className="subbucket-top">
+                            <div>
+                              <h3>{subBucket.name}</h3>
 
-                                <p>
-                                  {fundedPercent}
-                                  % funded
-                                </p>
-                              </div>
+                              <p>{fundedPercent}% funded</p>
+                            </div>
 
-                              <div className="subbucket-right">
-                                <strong
-                                  className={
-                                    amount <
-                                    0
-                                      ? "negative"
-                                      : ""
-                                  }
+                            <div className="subbucket-right">
+                              <strong className={amount < 0 ? "negative" : ""}>
+                                {formatCurrency(amount)}
+                              </strong>
+
+                              <span className={`status ${status}`}>
+                                Available
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="progress-bar">
+                            <div
+                              className={`progress-fill ${status}`}
+                              style={{
+                                width: `${Math.min(fundedPercent, 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </button>
+
+                        {historyExpanded && (
+                          <div className="history-panel">
+                            {history.length === 0 ? (
+                              <p className="empty">No history</p>
+                            ) : (
+                              history.map((item, index) => (
+                                <div
+                                  key={`${historyKey}-${index}`}
+                                  className="history-row"
                                 >
-                                  {formatCurrency(
-                                    amount
-                                  )}
-                                </strong>
+                                  <div>
+                                    <strong>{item.type}</strong>
 
-                                <span
-                                  className={`status ${status}`}
-                                >
-                                  Available
-                                </span>
-                              </div>
-                            </div>
+                                    <span>{item.date || "No date"}</span>
+                                  </div>
 
-                            <div className="progress-bar">
-                              <div
-                                className={`progress-fill ${status}`}
-                                style={{
-                                  width: `${Math.min(
-                                    fundedPercent,
-                                    100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          </button>
-
-                          {historyExpanded && (
-                            <div className="history-panel">
-                              {history.length ===
-                              0 ? (
-                                <p className="empty">
-                                  No history
-                                </p>
-                              ) : (
-                                history.map(
-                                  (
-                                    item,
-                                    index
-                                  ) => (
-                                    <div
-                                      key={`${historyKey}-${index}`}
-                                      className="history-row"
-                                    >
-                                      <div>
-                                        <strong>
-                                          {
-                                            item.type
-                                          }
-                                        </strong>
-
-                                        <span>
-                                          {item.date ||
-                                            "No date"}
-                                        </span>
-                                      </div>
-
-                                      <strong
-                                        className={
-                                          item.amount <
-                                          0
-                                            ? "negative"
-                                            : "positive"
-                                        }
-                                      >
-                                        {formatCurrency(
-                                          item.amount
-                                        )}
-                                      </strong>
-                                    </div>
-                                  )
-                                )
-                              )}
-                            </div>
-                          )}
-                        </article>
-                      );
-                    }
-                  )}
+                                  <strong
+                                    className={
+                                      item.amount < 0 ? "negative" : "positive"
+                                    }
+                                  >
+                                    {formatCurrency(item.amount)}
+                                  </strong>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </section>
