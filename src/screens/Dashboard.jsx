@@ -65,15 +65,12 @@ function calculateBalances(transactions) {
   }
 
   function add(bucketName, subBucketName, amount) {
-    if (!bucketName) return;
+    if (!bucketName || !subBucketName) return;
 
     ensure(bucketName, subBucketName);
 
     balances[bucketName].total += Number(amount || 0);
-
-    if (subBucketName) {
-      balances[bucketName].subBuckets[subBucketName] += Number(amount || 0);
-    }
+    balances[bucketName].subBuckets[subBucketName] += Number(amount || 0);
   }
 
   function addHistory(bucketName, subBucketName, item) {
@@ -91,6 +88,18 @@ function calculateBalances(transactions) {
   transactions.forEach((transaction) => {
     const amount = Number(transaction.amount || 0);
 
+    if (transaction.type === "Deposit") {
+      add(transaction.bucket, transaction.subBucket, Math.abs(amount));
+
+      addHistory(transaction.bucket, transaction.subBucket, {
+        type: "Deposit",
+        amount: Math.abs(amount),
+        date: transaction.date,
+      });
+
+      return;
+    }
+
     if (transaction.type === "Expense") {
       add(transaction.bucket, transaction.subBucket, -Math.abs(amount));
 
@@ -99,35 +108,8 @@ function calculateBalances(transactions) {
         amount: -Math.abs(amount),
         date: transaction.date,
       });
-    }
 
-    if (transaction.type === "Deposit" || transaction.type === "Paycheck") {
-      add(transaction.bucket, transaction.subBucket, Math.abs(amount));
-
-      addHistory(transaction.bucket, transaction.subBucket, {
-        type: transaction.type,
-        amount: Math.abs(amount),
-        date: transaction.date,
-      });
-
-      if (
-        transaction.type === "Paycheck" &&
-        Array.isArray(transaction.allocations)
-      ) {
-        transaction.allocations.forEach((allocation) => {
-          add(
-            allocation.bucket,
-            allocation.subBucket,
-            Number(allocation.amount || 0)
-          );
-
-          addHistory(allocation.bucket, allocation.subBucket, {
-            type: "Paycheck",
-            amount: Number(allocation.amount || 0),
-            date: transaction.date,
-          });
-        });
-      }
+      return;
     }
 
     if (transaction.type === "Transfer") {
@@ -145,6 +127,25 @@ function calculateBalances(transactions) {
         type: "Transfer In",
         amount: Math.abs(amount),
         date: transaction.date,
+      });
+
+      return;
+    }
+
+    if (
+      transaction.type === "Paycheck" &&
+      Array.isArray(transaction.allocations)
+    ) {
+      transaction.allocations.forEach((allocation) => {
+        const allocationAmount = Number(allocation.amount || 0);
+
+        add(allocation.bucket, allocation.subBucket, Math.abs(allocationAmount));
+
+        addHistory(allocation.bucket, allocation.subBucket, {
+          type: "Paycheck",
+          amount: Math.abs(allocationAmount),
+          date: transaction.date,
+        });
       });
     }
   });
@@ -274,13 +275,10 @@ export default function Dashboard() {
               >
                 <div>
                   <h2>{bucket.name}</h2>
-
                   <p>{bucket.subBuckets.length} sub-buckets</p>
                 </div>
 
-                <strong
-                  className={bucketBalance.total < 0 ? "negative" : ""}
-                >
+                <strong className={bucketBalance.total < 0 ? "negative" : ""}>
                   {formatCurrency(bucketBalance.total)}
                 </strong>
               </button>
@@ -315,7 +313,6 @@ export default function Dashboard() {
                           <div className="subbucket-top">
                             <div>
                               <h3>{subBucket.name}</h3>
-
                               <p>{fundedPercent}% funded</p>
                             </div>
 
@@ -352,7 +349,6 @@ export default function Dashboard() {
                                 >
                                   <div>
                                     <strong>{item.type}</strong>
-
                                     <span>{item.date || "No date"}</span>
                                   </div>
 
