@@ -19,7 +19,7 @@ function calculateBalances(transactions) {
   const balances = {};
   const historyMap = {};
 
-  function ensureBucket(bucketName, subBucketName) {
+  function ensure(bucketName, subBucketName) {
     if (!bucketName) return;
 
     if (!balances[bucketName]) {
@@ -37,10 +37,10 @@ function calculateBalances(transactions) {
     }
   }
 
-  function addAmount(bucketName, subBucketName, amount) {
+  function add(bucketName, subBucketName, amount) {
     if (!bucketName) return;
 
-    ensureBucket(bucketName, subBucketName);
+    ensure(bucketName, subBucketName);
 
     balances[bucketName].total += Number(amount || 0);
 
@@ -50,9 +50,7 @@ function calculateBalances(transactions) {
   }
 
   function addHistory(bucketName, subBucketName, item) {
-    if (!bucketName || !subBucketName) {
-      return;
-    }
+    if (!bucketName || !subBucketName) return;
 
     const key = `${bucketName}:::${subBucketName}`;
 
@@ -71,7 +69,7 @@ function calculateBalances(transactions) {
     */
 
     if (transaction.type === "Expense") {
-      addAmount(
+      add(
         transaction.bucket,
         transaction.subBucket,
         -Math.abs(amount)
@@ -89,14 +87,14 @@ function calculateBalances(transactions) {
     }
 
     /*
-      DEPOSIT / PAYCHECK
+      DEPOSIT
     */
 
     if (
       transaction.type === "Deposit" ||
       transaction.type === "Paycheck"
     ) {
-      addAmount(
+      add(
         transaction.bucket,
         transaction.subBucket,
         Math.abs(amount)
@@ -118,13 +116,13 @@ function calculateBalances(transactions) {
     */
 
     if (transaction.type === "Transfer") {
-      addAmount(
+      add(
         transaction.fromBucket,
         transaction.fromSubBucket,
         -Math.abs(amount)
       );
 
-      addAmount(
+      add(
         transaction.toBucket,
         transaction.toSubBucket,
         Math.abs(amount)
@@ -150,14 +148,6 @@ function calculateBalances(transactions) {
         }
       );
     }
-  });
-
-  Object.keys(historyMap).forEach((key) => {
-    historyMap[key].sort((a, b) =>
-      String(b.date || "").localeCompare(
-        String(a.date || "")
-      )
-    );
   });
 
   return {
