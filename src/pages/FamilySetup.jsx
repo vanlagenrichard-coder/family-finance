@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import { createFamily, getUserFamilyId, joinFamily } from "../firebase/familyService";
+import {
+  createFamily,
+  getUserFamilyId,
+  joinFamily,
+} from "../firebase/familyService";
 import { useAuth } from "../context/AuthContext";
 
 export default function FamilySetup({ onFamilyReady }) {
   const { currentUser, logout } = useAuth();
-  const [familyId, setFamilyId] = useState("");
+
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -15,13 +19,22 @@ export default function FamilySetup({ onFamilyReady }) {
       if (!currentUser) return;
 
       try {
+        const savedFamilyId = localStorage.getItem("familyId");
+
+        if (savedFamilyId) {
+          onFamilyReady(savedFamilyId);
+          return;
+        }
+
         const existingFamilyId = await getUserFamilyId(currentUser.uid);
 
         if (existingFamilyId) {
+          localStorage.setItem("familyId", existingFamilyId);
           onFamilyReady(existingFamilyId);
-        } else {
-          setLoading(false);
+          return;
         }
+
+        setLoading(false);
       } catch (err) {
         setError(err.message);
         setLoading(false);
@@ -37,7 +50,9 @@ export default function FamilySetup({ onFamilyReady }) {
 
     try {
       const newFamilyId = await createFamily(currentUser);
-      setFamilyId(newFamilyId);
+
+      localStorage.setItem("familyId", newFamilyId);
+
       onFamilyReady(newFamilyId);
     } catch (err) {
       setError(err.message);
@@ -48,17 +63,30 @@ export default function FamilySetup({ onFamilyReady }) {
 
   async function handleJoinFamily(e) {
     e.preventDefault();
+
+    const trimmedCode = joinCode.trim();
+
+    if (!trimmedCode) return;
+
     setError("");
     setWorking(true);
 
     try {
-      await joinFamily(currentUser, joinCode.trim());
-      onFamilyReady(joinCode.trim());
+      await joinFamily(currentUser, trimmedCode);
+
+      localStorage.setItem("familyId", trimmedCode);
+
+      onFamilyReady(trimmedCode);
     } catch (err) {
       setError(err.message);
     } finally {
       setWorking(false);
     }
+  }
+
+  async function handleLogout() {
+    localStorage.removeItem("familyId");
+    await logout();
   }
 
   if (loading) {
@@ -71,7 +99,7 @@ export default function FamilySetup({ onFamilyReady }) {
 
       <p>Use one shared family budget for both phones.</p>
 
-      {error && <p>{error}</p>}
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
       <button type="button" onClick={handleCreateFamily} disabled={working}>
         Create Family Budget
@@ -90,13 +118,7 @@ export default function FamilySetup({ onFamilyReady }) {
         </button>
       </form>
 
-      {familyId && (
-        <p>
-          Family Code: <strong>{familyId}</strong>
-        </p>
-      )}
-
-      <button type="button" onClick={logout}>
+      <button type="button" onClick={handleLogout}>
         Logout
       </button>
     </div>
