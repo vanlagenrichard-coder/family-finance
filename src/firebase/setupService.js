@@ -1,4 +1,11 @@
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
 import { db } from "./firebase";
 
 export async function loadFamilySetup(familyId) {
@@ -11,12 +18,18 @@ export async function loadFamilySetup(familyId) {
     };
   }
 
-  const data = snap.data();
+  return snap.data();
+}
 
-  return {
-    setupBuckets: data.setupBuckets || [],
-    buckets: data.buckets || [],
-  };
+export function watchFamilySetup(familyId, callback) {
+  return onSnapshot(
+    doc(db, "families", familyId),
+    (snap) => {
+      if (snap.exists()) {
+        callback(snap.data());
+      }
+    }
+  );
 }
 
 export async function saveFamilySetup(
