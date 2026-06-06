@@ -414,19 +414,25 @@ function History() {
     });
   }
 
-  function buildBillsAllocations(bucket, bucketAmount, excludeTransactionId = "") {
+  function buildBillsTargetAwareAllocations(
+    bucket,
+    amount,
+    excludeTransactionId = ""
+  ) {
     const allocations = [];
     const balances = getCurrentBalances(excludeTransactionId);
+
     const cappedSubBuckets = bucket.subBuckets.filter(
       (subBucket) => subBucket.monthlyTarget !== null
     );
+
     const noTargetSubBuckets = bucket.subBuckets.filter(
       (subBucket) => subBucket.monthlyTarget === null
     );
 
-    let leftover = money(bucketAmount);
+    let leftover = money(amount);
 
-    splitAmountByPercent(bucketAmount, cappedSubBuckets).forEach(({ item, amount }) => {
+    splitAmountByPercent(amount, cappedSubBuckets).forEach(({ item, amount: itemAmount }) => {
       if (leftover <= 0) return;
 
       const currentBalance = Number(balances[balanceKey(bucket.name, item.name)] || 0);
@@ -434,7 +440,7 @@ function History() {
 
       if (remainingToTarget <= 0) return;
 
-      const cappedAmount = money(Math.min(amount, remainingToTarget, leftover));
+      const cappedAmount = money(Math.min(itemAmount, remainingToTarget, leftover));
 
       if (cappedAmount > 0) {
         allocations.push({
@@ -448,18 +454,20 @@ function History() {
     });
 
     if (leftover > 0 && noTargetSubBuckets.length > 0) {
-      splitAmountByPercent(leftover, noTargetSubBuckets).forEach(({ item, amount }) => {
-        if (amount > 0) {
-          allocations.push({
-            bucket: bucket.name,
-            subBucket: item.name,
-            amount,
-          });
+      splitAmountByPercent(leftover, noTargetSubBuckets).forEach(
+        ({ item, amount: itemAmount }) => {
+          if (itemAmount > 0) {
+            allocations.push({
+              bucket: bucket.name,
+              subBucket: item.name,
+              amount: itemAmount,
+            });
+          }
         }
-      });
+      );
     }
 
-    return allocations;
+    return allocations.filter((allocation) => Number(allocation.amount || 0) > 0);
   }
 
   function buildPaycheckAllocations(amount, excludeTransactionId = "") {
@@ -483,7 +491,11 @@ function History() {
       if (Array.isArray(bucket.subBuckets) && bucket.subBuckets.length > 0) {
         if (bucket.name.toLowerCase() === "bills") {
           allocations.push(
-            ...buildBillsAllocations(bucket, bucketAmount, excludeTransactionId)
+            ...buildBillsTargetAwareAllocations(
+              bucket,
+              bucketAmount,
+              excludeTransactionId
+            )
           );
           return;
         }
@@ -519,11 +531,15 @@ function History() {
     return allocations.filter((allocation) => Number(allocation.amount || 0) > 0);
   }
 
-  function buildDepositAllocations(amount, bucketName) {
+  function buildDepositAllocations(amount, bucketName, excludeTransactionId = "") {
     const bucket = activeBuckets.find((item) => item.name === bucketName);
     const subBuckets = bucket?.subBuckets || [];
 
     if (!bucket || subBuckets.length === 0) return [];
+
+    if (bucket.name.toLowerCase() === "bills") {
+      return buildBillsTargetAwareAllocations(bucket, amount, excludeTransactionId);
+    }
 
     const subPercentTotal = subBuckets.reduce(
       (total, subBucket) => total + Number(subBucket.percent || 0),
@@ -612,7 +628,11 @@ function History() {
     }
 
     if (type === "Deposit" && row.bucket && !row.subBucket) {
-      const allocations = buildDepositAllocations(amount, row.bucket);
+      const allocations = buildDepositAllocations(
+        amount,
+        row.bucket,
+        existingTransaction?.id || ""
+      );
 
       if (allocations.length > 0) {
         return {
