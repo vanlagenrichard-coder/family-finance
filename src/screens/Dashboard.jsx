@@ -30,12 +30,7 @@ function getSubBuckets(bucket) {
 }
 
 function isActive(item) {
-  return (
-    !item?.archived &&
-    !item?.isArchived &&
-    !item?.inactive &&
-    item?.active !== false
-  );
+  return item?.archived !== true;
 }
 
 function normalizeBuckets(data) {
@@ -80,15 +75,13 @@ function calculateBalances(transactions) {
   }
 
   function add(bucketName, subBucketName, amount) {
-    if (!bucketName) return;
+    if (!bucketName || !subBucketName) return;
 
     const value = Number(amount || 0);
 
     ensure(bucketName, subBucketName);
 
-    if (subBucketName) {
-      balances[bucketName].subBuckets[subBucketName] += value;
-    }
+    balances[bucketName].subBuckets[subBucketName] += value;
   }
 
   transactions.forEach((transaction) => {
@@ -196,7 +189,11 @@ function applyBillsExtraLogic(bucket, balances) {
     const targetAmount = Number(subBucket.targetAmount || 0);
     const currentAmount = Number(subBucket.displayAmount || 0);
 
-    if (targetAmount <= 0 || currentAmount >= targetAmount || billsExtraAmount <= 0) {
+    if (
+      targetAmount <= 0 ||
+      currentAmount >= targetAmount ||
+      billsExtraAmount <= 0
+    ) {
       return subBucket;
     }
 
