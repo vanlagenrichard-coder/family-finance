@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import {
+  saveFamilyTransactions,
+  watchFamilyTransactions,
+} from "../firebase/transactionService";
 
 const STORAGE_KEY = "family_finance_app_data";
 
@@ -237,6 +241,7 @@ function History() {
   useEffect(() => {
     const currentData = readStoredData();
     const buckets = normalizeBuckets(currentData);
+    const familyId = localStorage.getItem("familyId");
 
     setData({
       ...currentData,
@@ -244,6 +249,26 @@ function History() {
     });
 
     setNewRow(createEmptyForm(buckets));
+
+    if (!familyId) return undefined;
+
+    const unsubscribe = watchFamilyTransactions(familyId, (firestoreTransactions) => {
+      const localData = readStoredData();
+
+      const nextData = {
+        ...localData,
+        transactions: firestoreTransactions,
+      };
+
+      writeStoredData(nextData);
+
+      setData({
+        ...nextData,
+        transactions: normalizeTransactions(nextData),
+      });
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -676,7 +701,7 @@ function History() {
     };
   }
 
-  function saveTransactions(nextTransactions) {
+  async function saveTransactions(nextTransactions) {
     const currentData = readStoredData();
 
     const nextData = {
@@ -690,6 +715,16 @@ function History() {
       ...nextData,
       transactions: normalizeTransactions(nextData),
     });
+
+    const familyId = localStorage.getItem("familyId");
+
+    if (!familyId) return;
+
+    try {
+      await saveFamilyTransactions(familyId, nextTransactions);
+    } catch (err) {
+      console.error("Failed to save transactions to Firebase", err);
+    }
   }
 
   function addTransaction() {
