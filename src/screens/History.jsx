@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { loadData, saveData, updateData } from "../services/storage";
 
 const DEFAULT_SETUP_BUCKETS = [
@@ -172,6 +172,38 @@ function balanceKey(bucket, subBucket) {
 
 function getSubBucketsForBucket(buckets, bucketName) {
   return buckets.find((bucket) => bucket.name === bucketName)?.subBuckets || [];
+}
+
+function BottomNav() {
+  const location = useLocation();
+
+  const links = [
+    { label: "History", to: "/history" },
+    { label: "Balances", to: "/balances" },
+    { label: "Setup", to: "/setup" },
+    { label: "Home", to: "/" },
+  ];
+
+  return (
+    <nav className="bottom-nav">
+      {links.map((link) => {
+        const isActive =
+          link.to === "/"
+            ? location.pathname === "/"
+            : location.pathname === link.to;
+
+        return (
+          <Link
+            key={link.to}
+            className={`bottom-nav-link ${isActive ? "active" : ""}`}
+            to={link.to}
+          >
+            {link.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
 function History() {
@@ -813,6 +845,7 @@ function History() {
       <main className="history-page">
         <style>{historyStyles}</style>
         <p className="loading">Loading...</p>
+        <BottomNav />
       </main>
     );
   }
@@ -826,10 +859,6 @@ function History() {
           <p className="eyebrow">Family Finance</p>
           <h1>History</h1>
         </div>
-
-        <Link className="home-button" to="/">
-          Home
-        </Link>
       </header>
 
       <section className="sheet-shell">
@@ -1011,6 +1040,8 @@ function History() {
           )}
         </span>
       </footer>
+
+      <BottomNav />
     </main>
   );
 }
@@ -1020,7 +1051,7 @@ const historyStyles = `
     min-height: 100vh;
     background: #f8fafc;
     color: #111827;
-    padding: 10px;
+    padding: 10px 10px 86px;
     box-sizing: border-box;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
@@ -1056,20 +1087,6 @@ const historyStyles = `
     letter-spacing: -0.8px;
   }
 
-  .home-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40px;
-    padding: 0 15px;
-    border-radius: 999px;
-    background: #111827;
-    color: white;
-    text-decoration: none;
-    font-weight: 900;
-    font-size: 14px;
-  }
-
   .sheet-shell {
     max-width: 1180px;
     margin: 0 auto;
@@ -1080,7 +1097,7 @@ const historyStyles = `
 
   .sheet-scroll {
     width: 100%;
-    max-height: calc(100vh - 116px);
+    max-height: calc(100vh - 190px);
     overflow: auto;
   }
 
@@ -1294,9 +1311,44 @@ const historyStyles = `
     font-weight: 900;
   }
 
+  .bottom-nav {
+    position: fixed;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    width: calc(100% - 24px);
+    max-width: 560px;
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 6px;
+    box-sizing: border-box;
+    border-radius: 22px;
+    background: rgba(15, 23, 42, 0.94);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+    z-index: 50;
+  }
+
+  .bottom-nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .bottom-nav-link.active {
+    background: white;
+    color: #111827;
+  }
+
   @media (max-width: 700px) {
     .history-page {
-      padding: 8px;
+      padding: 8px 8px 86px;
     }
 
     .history-topbar {
@@ -1307,13 +1359,8 @@ const historyStyles = `
       font-size: 26px;
     }
 
-    .home-button {
-      min-height: 38px;
-      padding: 0 13px;
-    }
-
     .sheet-scroll {
-      max-height: calc(100vh - 104px);
+      max-height: calc(100vh - 178px);
     }
 
     .history-sheet {
@@ -1352,6 +1399,15 @@ const historyStyles = `
     .delete-button {
       width: 36px;
       height: 36px;
+    }
+
+    .bottom-nav {
+      bottom: 10px;
+      width: calc(100% - 20px);
+    }
+
+    .bottom-nav-link {
+      font-size: 12px;
     }
   }
 `;

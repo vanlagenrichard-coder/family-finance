@@ -60,18 +60,12 @@ function makeId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function cleanNumber(value) {
-  if (value === "" || value === null || value === undefined) return "";
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatPercent(value) {
-  return `${Number(value || 0).toFixed(2)}%`;
-}
-
-function isTotalValid(value) {
-  return Math.round(Number(value || 0) * 100) / 100 === 100;
+function readStoredData() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
 }
 
 function normalizeBuckets(rawBuckets) {
@@ -83,8 +77,8 @@ function normalizeBuckets(rawBuckets) {
   return source.map((bucket) => ({
     ...bucket,
     id: bucket.id || makeId("bucket"),
-    name: bucket.name || "",
-    percent: cleanNumber(bucket.percent),
+    name: bucket.name ?? "",
+    percent: bucket.percent ?? "",
     archived: bucket.archived === true,
     subBuckets: (
       bucket.subBuckets ||
@@ -95,24 +89,28 @@ function normalizeBuckets(rawBuckets) {
     ).map((subBucket) => ({
       ...subBucket,
       id: subBucket.id || makeId("sub"),
-      name: subBucket.name || "",
-      percent: cleanNumber(subBucket.percent),
-      monthlyTarget: cleanNumber(subBucket.monthlyTarget),
+      name: subBucket.name ?? "",
+      percent: subBucket.percent ?? "",
+      monthlyTarget: subBucket.monthlyTarget ?? "",
       archived: subBucket.archived === true,
     })),
   }));
 }
 
+function formatPercent(value) {
+  return `${Number(value || 0).toFixed(2)}%`;
+}
+
+function isTotalValid(value) {
+  return Math.round(Number(value || 0) * 100) / 100 === 100;
+}
+
 export default function Settings() {
-  const [data, setData] = useState({});
-  const [buckets, setBuckets] = useState(defaultSetupBuckets);
+  const [buckets, setBuckets] = useState([]);
 
   useEffect(() => {
-    const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    const savedBuckets =
-      savedData.setupBuckets || savedData.buckets || defaultSetupBuckets;
-
-    setData(savedData);
+    const savedData = readStoredData();
+    const savedBuckets = savedData.setupBuckets || savedData.buckets || defaultSetupBuckets;
     setBuckets(normalizeBuckets(savedBuckets));
   }, []);
 
@@ -127,14 +125,15 @@ export default function Settings() {
   );
 
   const saveBuckets = (nextBuckets) => {
+    const existingData = readStoredData();
+
     const nextData = {
-      ...data,
+      ...existingData,
       setupBuckets: nextBuckets,
       buckets: nextBuckets,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
-    setData(nextData);
     setBuckets(nextBuckets);
   };
 
@@ -142,11 +141,7 @@ export default function Settings() {
     saveBuckets(
       buckets.map((bucket) =>
         bucket.id === bucketId
-          ? {
-              ...bucket,
-              [field]: field === "percent" ? value : value,
-              archived: bucket.archived === true,
-            }
+          ? { ...bucket, [field]: value, archived: bucket.archived === true }
           : bucket
       )
     );
@@ -382,10 +377,6 @@ export default function Settings() {
           gap: 2px;
         }
 
-        .target-cell {
-          text-align: right;
-        }
-
         .actions {
           display: flex;
           align-items: center;
@@ -575,13 +566,6 @@ export default function Settings() {
                           onChange={(event) =>
                             updateBucket(bucket.id, "percent", event.target.value)
                           }
-                          onBlur={(event) =>
-                            updateBucket(
-                              bucket.id,
-                              "percent",
-                              cleanNumber(event.target.value)
-                            )
-                          }
                         />
                         <span>%</span>
                       </div>
@@ -605,11 +589,7 @@ export default function Settings() {
                 <tr>
                   <td>Paycheck</td>
                   <td>
-                    <button
-                      className="add-row-button"
-                      type="button"
-                      onClick={addBucket}
-                    >
+                    <button className="add-row-button" type="button" onClick={addBucket}>
                       + Add bucket
                     </button>
                   </td>
@@ -675,14 +655,6 @@ export default function Settings() {
                                     event.target.value
                                   )
                                 }
-                                onBlur={(event) =>
-                                  updateSubBucket(
-                                    bucket.id,
-                                    subBucket.id,
-                                    "percent",
-                                    cleanNumber(event.target.value)
-                                  )
-                                }
                               />
                               <span>%</span>
                             </div>
@@ -698,14 +670,6 @@ export default function Settings() {
                                   subBucket.id,
                                   "monthlyTarget",
                                   event.target.value
-                                )
-                              }
-                              onBlur={(event) =>
-                                updateSubBucket(
-                                  bucket.id,
-                                  subBucket.id,
-                                  "monthlyTarget",
-                                  cleanNumber(event.target.value)
                                 )
                               }
                             />

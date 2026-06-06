@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { loadData } from "../services/storage";
 
 function formatCurrency(value) {
@@ -195,6 +195,17 @@ function isPercentTotalValid(total) {
   return Math.abs(Number(total || 0) - 100) < 0.01;
 }
 
+function BottomNav() {
+  return (
+    <nav className="bottom-nav">
+      <NavLink to="/history">History</NavLink>
+      <NavLink to="/balances">Balances</NavLink>
+      <NavLink to="/setup">Setup</NavLink>
+      <NavLink to="/">Home</NavLink>
+    </nav>
+  );
+}
+
 export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -300,10 +311,6 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page">
       <header className="header">
-        <Link to="/" className="home-button">
-          Home
-        </Link>
-
         <div>
           <h1>Balances</h1>
           <p>Live calculated balances</p>
@@ -371,11 +378,13 @@ export default function Dashboard() {
         </div>
       </main>
 
+      <BottomNav />
+
       <style>{`
         .dashboard-page {
           min-height: 100vh;
           background: #f3f4f6;
-          padding: 16px;
+          padding: 16px 16px 92px;
           color: #111827;
         }
 
@@ -395,19 +404,6 @@ export default function Dashboard() {
           margin: 4px 0 0;
           color: #6b7280;
           font-size: 14px;
-        }
-
-        .home-button {
-          height: 44px;
-          padding: 0 16px;
-          border-radius: 14px;
-          background: #111827;
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          text-decoration: none;
-          font-weight: 700;
         }
 
         .warnings {
@@ -526,9 +522,41 @@ export default function Dashboard() {
           font-weight: 900;
         }
 
+        .bottom-nav {
+          position: fixed;
+          left: 12px;
+          right: 12px;
+          bottom: 12px;
+          z-index: 50;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          padding: 10px;
+          background: #111827;
+          border-radius: 22px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+        }
+
+        .bottom-nav a {
+          min-height: 44px;
+          border-radius: 15px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          color: #d1d5db;
+          font-size: 13px;
+          font-weight: 800;
+        }
+
+        .bottom-nav a.active {
+          background: white;
+          color: #111827;
+        }
+
         @media (max-width: 720px) {
           .dashboard-page {
-            padding: 12px;
+            padding: 12px 12px 92px;
           }
 
           .header h1 {
@@ -561,6 +589,19 @@ export default function Dashboard() {
 
           .amount {
             font-size: 13px;
+          }
+
+          .bottom-nav {
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            gap: 6px;
+            padding: 8px;
+          }
+
+          .bottom-nav a {
+            min-height: 42px;
+            font-size: 12px;
           }
         }
       `}</style>
