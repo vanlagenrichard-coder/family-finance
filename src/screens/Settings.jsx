@@ -60,31 +60,31 @@ function makeId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function normalizePercent(value) {
-  if (value === "" || value === null || value === undefined) return "";
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function normalizeTarget(value) {
+function cleanNumber(value) {
   if (value === "" || value === null || value === undefined) return "";
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatPercent(value) {
-  const num = Number(value || 0);
-  return `${num.toFixed(2)}%`;
+  return `${Number(value || 0).toFixed(2)}%`;
+}
+
+function isTotalValid(value) {
+  return Math.round(Number(value || 0) * 100) / 100 === 100;
 }
 
 function normalizeBuckets(rawBuckets) {
-  const source = Array.isArray(rawBuckets) && rawBuckets.length > 0 ? rawBuckets : defaultSetupBuckets;
+  const source =
+    Array.isArray(rawBuckets) && rawBuckets.length > 0
+      ? rawBuckets
+      : defaultSetupBuckets;
 
   return source.map((bucket) => ({
     ...bucket,
     id: bucket.id || makeId("bucket"),
     name: bucket.name || "",
-    percent: normalizePercent(bucket.percent),
+    percent: cleanNumber(bucket.percent),
     archived: bucket.archived === true,
     subBuckets: (
       bucket.subBuckets ||
@@ -96,8 +96,8 @@ function normalizeBuckets(rawBuckets) {
       ...subBucket,
       id: subBucket.id || makeId("sub"),
       name: subBucket.name || "",
-      percent: normalizePercent(subBucket.percent),
-      monthlyTarget: normalizeTarget(subBucket.monthlyTarget),
+      percent: cleanNumber(subBucket.percent),
+      monthlyTarget: cleanNumber(subBucket.monthlyTarget),
       archived: subBucket.archived === true,
     })),
   }));
@@ -109,7 +109,8 @@ export default function Settings() {
 
   useEffect(() => {
     const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    const savedBuckets = savedData.setupBuckets || savedData.buckets || defaultSetupBuckets;
+    const savedBuckets =
+      savedData.setupBuckets || savedData.buckets || defaultSetupBuckets;
 
     setData(savedData);
     setBuckets(normalizeBuckets(savedBuckets));
@@ -243,95 +244,99 @@ export default function Settings() {
       <style>{`
         .setup-page {
           min-height: 100vh;
-          background: #f4f4f4;
-          display: flex;
-          justify-content: center;
-          font-family: Arial, Helvetica, sans-serif;
+          background: #f5f6f7;
           color: #111;
-        }
-
-        .setup-shell {
-          width: 100%;
-          max-width: 430px;
-          min-height: 100vh;
-          background: #fff;
+          font-family: Arial, Helvetica, sans-serif;
           display: flex;
           flex-direction: column;
         }
 
-        .status-bar {
-          height: 34px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 24px;
-          font-size: 14px;
-          font-weight: 700;
-        }
-
-        .top-bar {
-          height: 58px;
-          display: grid;
-          grid-template-columns: 60px 1fr 60px;
-          align-items: center;
-          border-bottom: 1px solid #d9d9d9;
+        .setup-header {
+          height: 64px;
           background: #fff;
+          border-bottom: 1px solid #d9d9d9;
+          display: grid;
+          grid-template-columns: 64px 1fr 64px;
+          align-items: center;
+          flex-shrink: 0;
         }
 
-        .top-button {
+        .menu-button {
           border: none;
           background: transparent;
           color: #087c30;
-          font-size: 28px;
+          font-size: 30px;
           line-height: 1;
           cursor: pointer;
         }
 
-        .page-title {
+        .setup-title {
           text-align: center;
-          font-size: 21px;
+          font-size: 22px;
           font-weight: 800;
         }
 
-        .sheet-wrap {
+        .setup-content {
+          width: 100%;
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 16px 16px 96px;
+          box-sizing: border-box;
           flex: 1;
-          overflow: auto;
-          padding-bottom: 82px;
+        }
+
+        .sheet-card {
+          background: #fff;
+          border: 1px solid #dcdcdc;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .table-scroll {
+          width: 100%;
+          overflow-x: auto;
         }
 
         .setup-table {
           width: 100%;
           border-collapse: collapse;
           table-layout: fixed;
+          min-width: 680px;
           font-size: 15px;
         }
 
         .setup-table th {
-          height: 34px;
+          height: 38px;
           background: #fafafa;
           border-right: 1px solid #dfdfdf;
           border-bottom: 1px solid #d6d6d6;
           text-align: center;
           font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.2px;
+          font-weight: 800;
+          letter-spacing: 0.25px;
         }
 
         .setup-table td {
-          height: 29px;
+          height: 34px;
           border-right: 1px solid #e3e3e3;
           border-bottom: 1px solid #e3e3e3;
-          padding: 0 7px;
+          padding: 0 9px;
           background: #fff;
           vertical-align: middle;
         }
 
+        .setup-table th:last-child,
+        .setup-table td:last-child {
+          border-right: none;
+        }
+
         .section-col {
-          width: 23%;
+          width: 22%;
         }
 
         .item-col {
-          width: 27%;
+          width: 30%;
         }
 
         .percent-col {
@@ -343,7 +348,7 @@ export default function Settings() {
         }
 
         .actions-col {
-          width: 15%;
+          width: 13%;
         }
 
         .cell-input {
@@ -374,7 +379,7 @@ export default function Settings() {
           display: grid;
           grid-template-columns: 1fr auto;
           align-items: center;
-          gap: 1px;
+          gap: 2px;
         }
 
         .target-cell {
@@ -385,24 +390,28 @@ export default function Settings() {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 9px;
         }
 
-        .action-button {
+        .delete-button {
           border: none;
           background: transparent;
           cursor: pointer;
-          padding: 0;
+          padding: 3px 6px;
           color: #555;
-          font-size: 14px;
+          font-size: 15px;
           line-height: 1;
         }
 
-        .add-item-button {
+        .delete-button:hover {
+          color: #b00020;
+        }
+
+        .add-row-button {
           border: none;
           background: transparent;
           color: #087c30;
           font: inherit;
+          font-weight: 700;
           padding: 0;
           cursor: pointer;
           text-align: left;
@@ -412,43 +421,58 @@ export default function Settings() {
         .gap-row td {
           height: 12px;
           background: #fff;
+          border-bottom: 1px solid #e8e8e8;
         }
 
-        .total-strip {
-          min-height: 44px;
-          display: grid;
-          grid-template-columns: 1fr auto;
-          align-items: center;
-          gap: 16px;
-          padding: 0 26px;
-          border-top: 1px solid #d4eddc;
+        .total-row td {
           background: #eaf8ef;
           color: #087c30;
-          font-size: 16px;
+          font-weight: 800;
+        }
+
+        .sub-total-row td {
+          background: #f8f8f8;
+          color: #555;
+          font-size: 13px;
           font-weight: 700;
         }
 
-        .warning-strip {
-          background: #fff7e6;
+        .valid {
+          color: #087c30;
+        }
+
+        .invalid {
+          color: #b36b00;
+        }
+
+        .warning-panel {
+          padding: 12px 16px;
+          border-top: 1px solid #e6e6e6;
+          background: #fff;
+          display: grid;
+          gap: 6px;
+          font-size: 14px;
+        }
+
+        .warning-line {
           color: #9a6200;
-          border-top: 1px solid #f1d39a;
-          padding: 8px 18px;
-          font-size: 12px;
-          line-height: 1.35;
+        }
+
+        .success-line {
+          color: #087c30;
         }
 
         .bottom-nav {
           position: fixed;
-          left: 50%;
+          left: 0;
+          right: 0;
           bottom: 0;
-          transform: translateX(-50%);
-          width: 100%;
-          max-width: 430px;
           height: 76px;
           background: #fff;
           border-top: 1px solid #dedede;
           display: grid;
           grid-template-columns: repeat(4, 1fr);
+          z-index: 10;
         }
 
         .nav-link {
@@ -459,12 +483,12 @@ export default function Settings() {
           gap: 4px;
           text-decoration: none;
           color: #555;
-          font-size: 15px;
-          font-weight: 500;
+          font-size: 14px;
+          font-weight: 600;
         }
 
         .nav-icon {
-          font-size: 21px;
+          font-size: 20px;
           line-height: 1;
         }
 
@@ -472,131 +496,207 @@ export default function Settings() {
           color: #087c30;
           font-weight: 800;
         }
+
+        @media (max-width: 600px) {
+          .setup-header {
+            height: 58px;
+            grid-template-columns: 54px 1fr 54px;
+          }
+
+          .setup-title {
+            font-size: 21px;
+          }
+
+          .setup-content {
+            padding: 10px 8px 92px;
+          }
+
+          .sheet-card {
+            border-radius: 0;
+          }
+
+          .setup-table {
+            font-size: 14px;
+            min-width: 620px;
+          }
+
+          .setup-table td {
+            height: 32px;
+            padding: 0 7px;
+          }
+
+          .bottom-nav {
+            height: 72px;
+          }
+        }
       `}</style>
 
-      <div className="setup-shell">
-        <div className="status-bar">
-          <span>9:41</span>
-          <span>▮▮▮ ᯤ 100</span>
-        </div>
+      <header className="setup-header">
+        <button className="menu-button" type="button" aria-label="Menu">
+          ≡
+        </button>
+        <div className="setup-title">Setup</div>
+        <div></div>
+      </header>
 
-        <header className="top-bar">
-          <button className="top-button" type="button" aria-label="Menu">
-            ≡
-          </button>
-          <div className="page-title">Setup</div>
-          <button className="top-button" type="button" onClick={addBucket} aria-label="Add bucket">
-            +
-          </button>
-        </header>
+      <main className="setup-content">
+        <div className="sheet-card">
+          <div className="table-scroll">
+            <table className="setup-table">
+              <thead>
+                <tr>
+                  <th className="section-col">SECTION</th>
+                  <th className="item-col">ITEM</th>
+                  <th className="percent-col">PERCENT</th>
+                  <th className="target-col">TARGET</th>
+                  <th className="actions-col">ACTIONS</th>
+                </tr>
+              </thead>
 
-        <main className="sheet-wrap">
-          <table className="setup-table">
-            <thead>
-              <tr>
-                <th className="section-col">SECTION</th>
-                <th className="item-col">ITEM</th>
-                <th className="percent-col">PERCENT</th>
-                <th className="target-col">TARGET</th>
-                <th className="actions-col">ACTIONS</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {activeBuckets.map((bucket) => (
-                <tr key={`paycheck-${bucket.id}`}>
-                  <td>Paycheck</td>
-                  <td>
-                    <input
-                      className="cell-input"
-                      value={bucket.name}
-                      onChange={(event) =>
-                        updateBucket(bucket.id, "name", event.target.value)
-                      }
-                    />
-                  </td>
-                  <td>
-                    <div className="percent-cell">
+              <tbody>
+                {activeBuckets.map((bucket) => (
+                  <tr key={`paycheck-${bucket.id}`}>
+                    <td>Paycheck</td>
+                    <td>
                       <input
-                        className="cell-input number-input"
-                        type="number"
-                        value={bucket.percent}
+                        className="cell-input"
+                        value={bucket.name}
                         onChange={(event) =>
-                          updateBucket(bucket.id, "percent", event.target.value)
-                        }
-                        onBlur={(event) =>
-                          updateBucket(
-                            bucket.id,
-                            "percent",
-                            normalizePercent(event.target.value)
-                          )
+                          updateBucket(bucket.id, "name", event.target.value)
                         }
                       />
-                      <span>%</span>
-                    </div>
+                    </td>
+                    <td>
+                      <div className="percent-cell">
+                        <input
+                          className="cell-input number-input"
+                          type="number"
+                          value={bucket.percent}
+                          onChange={(event) =>
+                            updateBucket(bucket.id, "percent", event.target.value)
+                          }
+                          onBlur={(event) =>
+                            updateBucket(
+                              bucket.id,
+                              "percent",
+                              cleanNumber(event.target.value)
+                            )
+                          }
+                        />
+                        <span>%</span>
+                      </div>
+                    </td>
+                    <td></td>
+                    <td>
+                      <div className="actions">
+                        <button
+                          className="delete-button"
+                          type="button"
+                          title="Delete"
+                          onClick={() => deleteBucket(bucket.id)}
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                <tr>
+                  <td>Paycheck</td>
+                  <td>
+                    <button
+                      className="add-row-button"
+                      type="button"
+                      onClick={addBucket}
+                    >
+                      + Add bucket
+                    </button>
                   </td>
                   <td></td>
-                  <td>
-                    <div className="actions">
-                      <button className="action-button" type="button" title="Edit">
-                        ✎
-                      </button>
-                      <button
-                        className="action-button"
-                        type="button"
-                        title="Delete"
-                        onClick={() => deleteBucket(bucket.id)}
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  </td>
+                  <td></td>
+                  <td></td>
                 </tr>
-              ))}
 
-              {activeBuckets.map((bucket) => {
-                const activeSubBuckets = (bucket.subBuckets || []).filter(
-                  (subBucket) => subBucket.archived !== true
-                );
+                <tr className="total-row">
+                  <td></td>
+                  <td>Paycheck Total</td>
+                  <td className={isTotalValid(paycheckTotal) ? "valid" : "invalid"}>
+                    {formatPercent(paycheckTotal)}
+                  </td>
+                  <td></td>
+                  <td></td>
+                </tr>
 
-                return (
-                  <React.Fragment key={`section-${bucket.id}`}>
-                    <tr className="gap-row">
-                      <td></td>
-                      <td></td>
-                      <td></td>
-                      <td></td>
-                      <td></td>
-                    </tr>
+                {activeBuckets.map((bucket) => {
+                  const activeSubBuckets = (bucket.subBuckets || []).filter(
+                    (subBucket) => subBucket.archived !== true
+                  );
+                  const subTotal = getSubBucketTotal(bucket);
 
-                    {activeSubBuckets.map((subBucket) => (
-                      <tr key={subBucket.id}>
-                        <td>{bucket.name}</td>
-                        <td>
-                          <input
-                            className="cell-input"
-                            value={subBucket.name}
-                            onChange={(event) =>
-                              updateSubBucket(
-                                bucket.id,
-                                subBucket.id,
-                                "name",
-                                event.target.value
-                              )
-                            }
-                          />
-                        </td>
-                        <td>
-                          <div className="percent-cell">
+                  return (
+                    <React.Fragment key={`section-${bucket.id}`}>
+                      <tr className="gap-row">
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                      </tr>
+
+                      {activeSubBuckets.map((subBucket) => (
+                        <tr key={subBucket.id}>
+                          <td>{bucket.name}</td>
+                          <td>
                             <input
-                              className="cell-input number-input"
-                              type="number"
-                              value={subBucket.percent}
+                              className="cell-input"
+                              value={subBucket.name}
                               onChange={(event) =>
                                 updateSubBucket(
                                   bucket.id,
                                   subBucket.id,
-                                  "percent",
+                                  "name",
+                                  event.target.value
+                                )
+                              }
+                            />
+                          </td>
+                          <td>
+                            <div className="percent-cell">
+                              <input
+                                className="cell-input number-input"
+                                type="number"
+                                value={subBucket.percent}
+                                onChange={(event) =>
+                                  updateSubBucket(
+                                    bucket.id,
+                                    subBucket.id,
+                                    "percent",
+                                    event.target.value
+                                  )
+                                }
+                                onBlur={(event) =>
+                                  updateSubBucket(
+                                    bucket.id,
+                                    subBucket.id,
+                                    "percent",
+                                    cleanNumber(event.target.value)
+                                  )
+                                }
+                              />
+                              <span>%</span>
+                            </div>
+                          </td>
+                          <td>
+                            <input
+                              className="cell-input number-input"
+                              type="number"
+                              value={subBucket.monthlyTarget}
+                              onChange={(event) =>
+                                updateSubBucket(
+                                  bucket.id,
+                                  subBucket.id,
+                                  "monthlyTarget",
                                   event.target.value
                                 )
                               }
@@ -604,122 +704,113 @@ export default function Settings() {
                                 updateSubBucket(
                                   bucket.id,
                                   subBucket.id,
-                                  "percent",
-                                  normalizePercent(event.target.value)
+                                  "monthlyTarget",
+                                  cleanNumber(event.target.value)
                                 )
                               }
                             />
-                            <span>%</span>
-                          </div>
-                        </td>
+                          </td>
+                          <td>
+                            <div className="actions">
+                              <button
+                                className="delete-button"
+                                type="button"
+                                title="Delete"
+                                onClick={() => deleteSubBucket(bucket.id, subBucket.id)}
+                              >
+                                🗑
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+
+                      <tr>
+                        <td>{bucket.name}</td>
                         <td>
-                          <input
-                            className="cell-input number-input"
-                            type="number"
-                            value={subBucket.monthlyTarget}
-                            onChange={(event) =>
-                              updateSubBucket(
-                                bucket.id,
-                                subBucket.id,
-                                "monthlyTarget",
-                                event.target.value
-                              )
-                            }
-                            onBlur={(event) =>
-                              updateSubBucket(
-                                bucket.id,
-                                subBucket.id,
-                                "monthlyTarget",
-                                normalizeTarget(event.target.value)
-                              )
-                            }
-                          />
+                          <button
+                            className="add-row-button"
+                            type="button"
+                            onClick={() => addSubBucket(bucket.id)}
+                          >
+                            + Add item
+                          </button>
                         </td>
-                        <td>
-                          <div className="actions">
-                            <button className="action-button" type="button" title="Edit">
-                              ✎
-                            </button>
-                            <button
-                              className="action-button"
-                              type="button"
-                              title="Delete"
-                              onClick={() => deleteSubBucket(bucket.id, subBucket.id)}
-                            >
-                              🗑
-                            </button>
-                          </div>
-                        </td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
                       </tr>
-                    ))}
 
-                    <tr>
-                      <td>{bucket.name}</td>
-                      <td>
-                        <button
-                          className="add-item-button"
-                          type="button"
-                          onClick={() => addSubBucket(bucket.id)}
-                        >
-                          + Add item
-                        </button>
-                      </td>
-                      <td>{formatPercent(getSubBucketTotal(bucket))}</td>
-                      <td></td>
-                      <td></td>
-                    </tr>
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-
-          <div className="total-strip">
-            <span>Paycheck Total</span>
-            <span>{formatPercent(paycheckTotal)}</span>
+                      {activeSubBuckets.length > 0 && (
+                        <tr className="sub-total-row">
+                          <td></td>
+                          <td>{bucket.name} Total</td>
+                          <td className={isTotalValid(subTotal) ? "valid" : "invalid"}>
+                            {formatPercent(subTotal)}
+                          </td>
+                          <td></td>
+                          <td></td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
-          {Math.round(paycheckTotal * 100) / 100 !== 100 && (
-            <div className="warning-strip">
-              Paycheck buckets should total 100%.
-            </div>
-          )}
+          <div className="warning-panel">
+            {isTotalValid(paycheckTotal) ? (
+              <div className="success-line">Paycheck buckets total 100%.</div>
+            ) : (
+              <div className="warning-line">
+                Paycheck buckets should total 100%. Current total:{" "}
+                {formatPercent(paycheckTotal)}
+              </div>
+            )}
 
-          {activeBuckets
-            .filter((bucket) => {
+            {activeBuckets.map((bucket) => {
               const activeSubBuckets = (bucket.subBuckets || []).filter(
                 (subBucket) => subBucket.archived !== true
               );
-              if (activeSubBuckets.length === 0) return false;
-              return Math.round(getSubBucketTotal(bucket) * 100) / 100 !== 100;
-            })
-            .map((bucket) => (
-              <div className="warning-strip" key={`warning-${bucket.id}`}>
-                {bucket.name} sub-buckets should total 100%. Current total:{" "}
-                {formatPercent(getSubBucketTotal(bucket))}
-              </div>
-            ))}
-        </main>
 
-        <nav className="bottom-nav">
-          <a className="nav-link" href="/history">
-            <span className="nav-icon">▤</span>
-            <span>History</span>
-          </a>
-          <a className="nav-link" href="/balances">
-            <span className="nav-icon">▥</span>
-            <span>Balances</span>
-          </a>
-          <a className="nav-link active" href="/setup">
-            <span className="nav-icon">⚙</span>
-            <span>Setup</span>
-          </a>
-          <a className="nav-link" href="/">
-            <span className="nav-icon">•••</span>
-            <span>Home</span>
-          </a>
-        </nav>
-      </div>
+              if (activeSubBuckets.length === 0) return null;
+
+              const subTotal = getSubBucketTotal(bucket);
+
+              return isTotalValid(subTotal) ? (
+                <div className="success-line" key={`ok-${bucket.id}`}>
+                  {bucket.name} sub-buckets total 100%.
+                </div>
+              ) : (
+                <div className="warning-line" key={`warning-${bucket.id}`}>
+                  {bucket.name} sub-buckets should total 100%. Current total:{" "}
+                  {formatPercent(subTotal)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </main>
+
+      <nav className="bottom-nav">
+        <a className="nav-link" href="/history">
+          <span className="nav-icon">▤</span>
+          <span>History</span>
+        </a>
+        <a className="nav-link" href="/balances">
+          <span className="nav-icon">▥</span>
+          <span>Balances</span>
+        </a>
+        <a className="nav-link active" href="/setup">
+          <span className="nav-icon">⚙</span>
+          <span>Setup</span>
+        </a>
+        <a className="nav-link" href="/">
+          <span className="nav-icon">⌂</span>
+          <span>Home</span>
+        </a>
+      </nav>
     </div>
   );
 }

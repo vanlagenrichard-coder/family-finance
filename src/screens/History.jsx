@@ -38,6 +38,21 @@ function getPercent(item) {
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+function getMonthlyTarget(item) {
+  const rawValue =
+    item?.monthlyTarget ??
+    item?.target ??
+    item?.targetAmount ??
+    item?.monthlyGoal ??
+    "";
+
+  if (rawValue === "" || rawValue === null || rawValue === undefined) return null;
+
+  const numberValue = Number(rawValue);
+
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
 function getSubBucketList(bucket) {
   if (Array.isArray(bucket?.subBuckets)) return bucket.subBuckets;
   if (Array.isArray(bucket?.subcategories)) return bucket.subcategories;
@@ -71,12 +86,14 @@ function normalizeBuckets(data) {
       id: bucket.id || bucket.name || makeId(),
       name: cleanText(bucket.name || bucket.label || bucket.id),
       percent: getPercent(bucket),
+      monthlyTarget: getMonthlyTarget(bucket),
       subBuckets: getSubBucketList(bucket)
         .filter((subBucket) => !isArchived(subBucket))
         .map((subBucket) => ({
           id: subBucket.id || subBucket.name || makeId(),
           name: cleanText(subBucket.name || subBucket.label || subBucket.id),
           percent: getPercent(subBucket),
+          monthlyTarget: getMonthlyTarget(subBucket),
         }))
         .filter((subBucket) => subBucket.name),
     }))
@@ -143,6 +160,14 @@ function formatMoney(value) {
     style: "currency",
     currency: "CAD",
   });
+}
+
+function money(value) {
+  return Number(Number(value || 0).toFixed(2));
+}
+
+function balanceKey(bucket, subBucket) {
+  return `${bucket || ""}|||${subBucket || ""}`;
 }
 
 function getSubBucketsForBucket(buckets, bucketName) {
@@ -281,7 +306,131 @@ function History() {
     return next;
   }
 
-  function buildPaycheckAllocations(amount) {
+  function getCurrentBalances(excludeTransactionId = "") {
+    const balances = {};
+    const currentTransactions = normalizeTransactions(data).filter(
+      (transaction) => transaction.id !== excludeTransactionId
+    );
+
+    currentTransactions.forEach((transaction) => {
+      if (Array.isArray(transaction.allocations) && transaction.allocations.length > 0) {
+        transaction.allocations.forEach((allocation) => {
+          const key = balanceKey(allocation.bucket, allocation.subBucket);
+          const amount = Number(allocation.amount || 0);
+
+          if (transaction.type === "Expense") {
+            balances[key] = money((balances[key] || 0) - amount);
+          } else {
+            balances[key] = money((balances[key] || 0) + amount);
+          }
+        });
+
+        return;
+      }
+
+      if (transaction.type === "Expense") {
+        const key = balanceKey(transaction.bucket, transaction.subBucket);
+        balances[key] = money((balances[key] || 0) - Number(transaction.amount || 0));
+        return;
+      }
+
+      if (transaction.type === "Deposit") {
+        const key = balanceKey(transaction.bucket, transaction.subBucket);
+        balances[key] = money((balances[key] || 0) + Number(transaction.amount || 0));
+        return;
+      }
+
+      if (transaction.type === "Transfer") {
+        const fromKey = balanceKey(transaction.fromBucket, transaction.fromSubBucket);
+        const toKey = balanceKey(transaction.toBucket, transaction.toSubBucket);
+
+        balances[fromKey] = money((balances[fromKey] || 0) - Number(transaction.amount || 0));
+        balances[toKey] = money((balances[toKey] || 0) + Number(transaction.amount || 0));
+      }
+    });
+
+    return balances;
+  }
+
+  function splitAmountByPercent(amount, items) {
+    if (!items.length) return [];
+
+    const percentTotal = items.reduce(
+      (total, item) => total + Number(item.percent || 0),
+      0
+    );
+
+    let remaining = money(amount);
+
+    return items.map((item, index) => {
+      const percent =
+        percentTotal > 0
+          ? Number(item.percent || 0) / percentTotal
+          : 1 / items.length;
+
+      const itemAmount =
+        index === items.length - 1
+          ? remaining
+          : money(amount * percent);
+
+      remaining = money(remaining - itemAmount);
+
+      return {
+        item,
+        amount: itemAmount,
+      };
+    });
+  }
+
+  function buildBillsAllocations(bucket, bucketAmount, excludeTransactionId = "") {
+    const allocations = [];
+    const balances = getCurrentBalances(excludeTransactionId);
+    const cappedSubBuckets = bucket.subBuckets.filter(
+      (subBucket) => subBucket.monthlyTarget !== null
+    );
+    const noTargetSubBuckets = bucket.subBuckets.filter(
+      (subBucket) => subBucket.monthlyTarget === null
+    );
+
+    let leftover = money(bucketAmount);
+
+    splitAmountByPercent(bucketAmount, cappedSubBuckets).forEach(({ item, amount }) => {
+      if (leftover <= 0) return;
+
+      const currentBalance = Number(balances[balanceKey(bucket.name, item.name)] || 0);
+      const remainingToTarget = money(Number(item.monthlyTarget || 0) - currentBalance);
+
+      if (remainingToTarget <= 0) return;
+
+      const cappedAmount = money(Math.min(amount, remainingToTarget, leftover));
+
+      if (cappedAmount > 0) {
+        allocations.push({
+          bucket: bucket.name,
+          subBucket: item.name,
+          amount: cappedAmount,
+        });
+
+        leftover = money(leftover - cappedAmount);
+      }
+    });
+
+    if (leftover > 0 && noTargetSubBuckets.length > 0) {
+      splitAmountByPercent(leftover, noTargetSubBuckets).forEach(({ item, amount }) => {
+        if (amount > 0) {
+          allocations.push({
+            bucket: bucket.name,
+            subBucket: item.name,
+            amount,
+          });
+        }
+      });
+    }
+
+    return allocations;
+  }
+
+  function buildPaycheckAllocations(amount, excludeTransactionId = "") {
     const allocations = [];
 
     if (!activeBuckets.length) return allocations;
@@ -297,9 +446,16 @@ function History() {
           ? Number(bucket.percent || 0)
           : 100 / activeBuckets.length;
 
-      const bucketAmount = amount * (bucketPercent / 100);
+      const bucketAmount = money(amount * (bucketPercent / 100));
 
       if (Array.isArray(bucket.subBuckets) && bucket.subBuckets.length > 0) {
+        if (bucket.name.toLowerCase() === "bills") {
+          allocations.push(
+            ...buildBillsAllocations(bucket, bucketAmount, excludeTransactionId)
+          );
+          return;
+        }
+
         const subPercentTotal = bucket.subBuckets.reduce(
           (total, subBucket) => total + Number(subBucket.percent || 0),
           0
@@ -311,24 +467,24 @@ function History() {
               ? Number(subBucket.percent || 0)
               : 100 / bucket.subBuckets.length;
 
-          const subAmount = bucketAmount * (subPercent / 100);
+          const subAmount = money(bucketAmount * (subPercent / 100));
 
           allocations.push({
             bucket: bucket.name,
             subBucket: subBucket.name,
-            amount: Number(subAmount.toFixed(2)),
+            amount: subAmount,
           });
         });
       } else {
         allocations.push({
           bucket: bucket.name,
           subBucket: "",
-          amount: Number(bucketAmount.toFixed(2)),
+          amount: bucketAmount,
         });
       }
     });
 
-    return allocations;
+    return allocations.filter((allocation) => Number(allocation.amount || 0) > 0);
   }
 
   function buildDepositAllocations(amount, bucketName) {
@@ -353,7 +509,7 @@ function History() {
       return {
         bucket: bucket.name,
         subBucket: subBucket.name,
-        amount: Number(subAmount.toFixed(2)),
+        amount: money(subAmount),
       };
     });
   }
@@ -380,7 +536,10 @@ function History() {
     };
 
     if (type === "Paycheck") {
-      const allocations = buildPaycheckAllocations(amount);
+      const allocations = buildPaycheckAllocations(
+        amount,
+        existingTransaction?.id || ""
+      );
 
       if (!allocations.length) {
         alert("Set up at least one active bucket before adding a paycheck.");
