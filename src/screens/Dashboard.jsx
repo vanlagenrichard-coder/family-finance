@@ -10,14 +10,56 @@ function formatCurrency(value) {
 }
 
 function getTransactions(data) {
-  return Array.isArray(data?.transactions)
-    ? data.transactions
-    : [];
+  return Array.isArray(data?.transactions) ? data.transactions : [];
+}
+
+function getSetup(data) {
+  if (Array.isArray(data?.setupBuckets)) return data.setupBuckets;
+  if (Array.isArray(data?.buckets)) return data.buckets;
+  if (Array.isArray(data?.settings?.setup)) return data.settings.setup;
+  if (Array.isArray(data?.setup)) return data.setup;
+  return [];
+}
+
+function getSubBuckets(bucket) {
+  if (Array.isArray(bucket?.subBuckets)) return bucket.subBuckets;
+  if (Array.isArray(bucket?.subcategories)) return bucket.subcategories;
+  if (Array.isArray(bucket?.children)) return bucket.children;
+  if (Array.isArray(bucket?.items)) return bucket.items;
+  return [];
+}
+
+function isActive(item) {
+  return (
+    !item?.archived &&
+    !item?.isArchived &&
+    !item?.inactive &&
+    item?.active !== false
+  );
+}
+
+function normalizeBuckets(data) {
+  return getSetup(data)
+    .filter(isActive)
+    .map((bucket) => ({
+      id: bucket.id || bucket.name,
+      name: bucket.name || "",
+      percent: Number(bucket.percent || 0),
+      subBuckets: getSubBuckets(bucket)
+        .filter(isActive)
+        .map((subBucket) => ({
+          id: subBucket.id || subBucket.name,
+          name: subBucket.name || "",
+          percent: Number(subBucket.percent || 0),
+          targetAmount: Number(
+            subBucket.monthlyTarget ?? subBucket.targetAmount ?? 0
+          ),
+        })),
+    }));
 }
 
 function calculateBalances(transactions) {
   const balances = {};
-  const historyMap = {};
 
   function ensure(bucketName, subBucketName) {
     if (!bucketName) return;
@@ -40,168 +82,159 @@ function calculateBalances(transactions) {
   function add(bucketName, subBucketName, amount) {
     if (!bucketName) return;
 
+    const value = Number(amount || 0);
+
     ensure(bucketName, subBucketName);
 
-    balances[bucketName].total += Number(amount || 0);
-
     if (subBucketName) {
-      balances[bucketName].subBuckets[subBucketName] += Number(amount || 0);
+      balances[bucketName].subBuckets[subBucketName] += value;
     }
-  }
-
-  function addHistory(bucketName, subBucketName, item) {
-    if (!bucketName || !subBucketName) return;
-
-    const key = `${bucketName}:::${subBucketName}`;
-
-    if (!historyMap[key]) {
-      historyMap[key] = [];
-    }
-
-    historyMap[key].push(item);
   }
 
   transactions.forEach((transaction) => {
     const amount = Number(transaction.amount || 0);
 
-    if (transaction.type === "Deposit") {
-      add(
-        transaction.bucket,
-        transaction.subBucket,
-        Math.abs(amount)
-      );
+    if (transaction.type === "Paycheck") {
+      if (Array.isArray(transaction.allocations)) {
+        transaction.allocations.forEach((allocation) => {
+          add(
+            allocation.bucket,
+            allocation.subBucket,
+            Math.abs(Number(allocation.amount || 0))
+          );
+        });
+      }
 
-      addHistory(
-        transaction.bucket,
-        transaction.subBucket,
-        {
-          type: "Deposit",
-          amount: Math.abs(amount),
-          date: transaction.date,
-        }
-      );
+      return;
+    }
+
+    if (transaction.type === "Deposit") {
+      add(transaction.bucket, transaction.subBucket, Math.abs(amount));
+      return;
     }
 
     if (transaction.type === "Expense") {
-      add(
-        transaction.bucket,
-        transaction.subBucket,
-        -Math.abs(amount)
-      );
-
-      addHistory(
-        transaction.bucket,
-        transaction.subBucket,
-        {
-          type: "Expense",
-          amount: -Math.abs(amount),
-          date: transaction.date,
-        }
-      );
-    }
-
-    if (
-      transaction.type === "Paycheck" &&
-      Array.isArray(transaction.allocations)
-    ) {
-      transaction.allocations.forEach((allocation) => {
-        const allocationAmount = Number(allocation.amount || 0);
-
-        add(
-          allocation.bucket,
-          allocation.subBucket,
-          Math.abs(allocationAmount)
-        );
-
-        addHistory(
-          allocation.bucket,
-          allocation.subBucket,
-          {
-            type: "Paycheck",
-            amount: Math.abs(allocationAmount),
-            date: transaction.date,
-          }
-        );
-      });
+      add(transaction.bucket, transaction.subBucket, -Math.abs(amount));
+      return;
     }
 
     if (transaction.type === "Transfer") {
-      add(
-        transaction.fromBucket,
-        transaction.fromSubBucket,
-        -Math.abs(amount)
-      );
-
-      add(
-        transaction.toBucket,
-        transaction.toSubBucket,
-        Math.abs(amount)
-      );
-
-      addHistory(
-        transaction.fromBucket,
-        transaction.fromSubBucket,
-        {
-          type: "Transfer Out",
-          amount: -Math.abs(amount),
-          date: transaction.date,
-        }
-      );
-
-      addHistory(
-        transaction.toBucket,
-        transaction.toSubBucket,
-        {
-          type: "Transfer In",
-          amount: Math.abs(amount),
-          date: transaction.date,
-        }
-      );
+      add(transaction.fromBucket, transaction.fromSubBucket, -Math.abs(amount));
+      add(transaction.toBucket, transaction.toSubBucket, Math.abs(amount));
     }
   });
 
+  Object.keys(balances).forEach((bucketName) => {
+    balances[bucketName].total = Object.values(
+      balances[bucketName].subBuckets
+    ).reduce((sum, value) => sum + Number(value || 0), 0);
+  });
+
+  return balances;
+}
+
+function isBillsBucket(bucket) {
+  return String(bucket?.name || "").trim().toLowerCase() === "bills";
+}
+
+function isBillsExtraSubBucket(subBucket) {
+  const name = String(subBucket?.name || "").trim().toLowerCase();
+  return name === "bills extra" || name === "extra";
+}
+
+function applyBillsExtraLogic(bucket, balances) {
+  const rawSubBalances = balances?.[bucket.name]?.subBuckets || {};
+
+  if (!isBillsBucket(bucket)) {
+    const subBuckets = bucket.subBuckets.map((subBucket) => ({
+      ...subBucket,
+      displayAmount: Number(rawSubBalances?.[subBucket.name] || 0),
+    }));
+
+    const total = subBuckets.reduce(
+      (sum, subBucket) => sum + Number(subBucket.displayAmount || 0),
+      0
+    );
+
+    return {
+      ...bucket,
+      subBuckets,
+      total,
+    };
+  }
+
+  const regularBills = bucket.subBuckets.filter(
+    (subBucket) => !isBillsExtraSubBucket(subBucket)
+  );
+
+  const existingExtra = bucket.subBuckets.find(isBillsExtraSubBucket);
+
+  let billsExtraAmount = existingExtra
+    ? Number(rawSubBalances?.[existingExtra.name] || 0)
+    : 0;
+
+  const cappedBills = regularBills.map((subBucket) => {
+    const rawAmount = Number(rawSubBalances?.[subBucket.name] || 0);
+    const targetAmount = Number(subBucket.targetAmount || 0);
+
+    if (targetAmount > 0 && rawAmount > targetAmount) {
+      billsExtraAmount += rawAmount - targetAmount;
+
+      return {
+        ...subBucket,
+        displayAmount: targetAmount,
+      };
+    }
+
+    return {
+      ...subBucket,
+      displayAmount: rawAmount,
+    };
+  });
+
+  const filledBills = cappedBills.map((subBucket) => {
+    const targetAmount = Number(subBucket.targetAmount || 0);
+    const currentAmount = Number(subBucket.displayAmount || 0);
+
+    if (targetAmount <= 0 || currentAmount >= targetAmount || billsExtraAmount <= 0) {
+      return subBucket;
+    }
+
+    const needed = targetAmount - currentAmount;
+    const amountToUse = Math.min(needed, billsExtraAmount);
+
+    billsExtraAmount -= amountToUse;
+
+    return {
+      ...subBucket,
+      displayAmount: currentAmount + amountToUse,
+    };
+  });
+
+  const billsExtraSubBucket = {
+    id: existingExtra?.id || "virtual-bills-extra",
+    name: existingExtra?.name || "Bills Extra",
+    percent: Number(existingExtra?.percent || 0),
+    targetAmount: Number(existingExtra?.targetAmount || 0),
+    displayAmount: billsExtraAmount,
+  };
+
+  const subBuckets = [...filledBills, billsExtraSubBucket];
+
+  const total = subBuckets.reduce(
+    (sum, subBucket) => sum + Number(subBucket.displayAmount || 0),
+    0
+  );
+
   return {
-    balances,
-    historyMap,
+    ...bucket,
+    subBuckets,
+    total,
   };
 }
 
-function getFundedPercent(amount, target) {
-  if (!target || target <= 0) {
-    return amount >= 0 ? 100 : 0;
-  }
-
-  return Math.max(
-    0,
-    Math.round((amount / target) * 100)
-  );
-}
-
-function getStatusColor(amount, fundedPercent) {
-  if (amount < 0) {
-    return "red";
-  }
-
-  if (fundedPercent >= 100) {
-    return "green";
-  }
-
-  if (fundedPercent >= 75) {
-    return "yellow";
-  }
-
-  return "red";
-}
-
 export default function Dashboard() {
-  const [refreshKey, setRefreshKey] =
-    useState(0);
-
-  const [expandedBuckets, setExpandedBuckets] =
-    useState({});
-
-  const [expandedHistory, setExpandedHistory] =
-    useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     function refresh() {
@@ -210,371 +243,109 @@ export default function Dashboard() {
 
     refresh();
 
-    window.addEventListener(
-      "focus",
-      refresh
-    );
-
-    window.addEventListener(
-      "pageshow",
-      refresh
-    );
-
-    window.addEventListener(
-      "storage",
-      refresh
-    );
-
-    window.addEventListener(
-      "app-data-updated",
-      refresh
-    );
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("app-data-updated", refresh);
 
     return () => {
-      window.removeEventListener(
-        "focus",
-        refresh
-      );
-
-      window.removeEventListener(
-        "pageshow",
-        refresh
-      );
-
-      window.removeEventListener(
-        "storage",
-        refresh
-      );
-
-      window.removeEventListener(
-        "app-data-updated",
-        refresh
-      );
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("app-data-updated", refresh);
     };
   }, []);
 
   const freshData = loadData();
 
-  const transactions =
-    getTransactions(freshData);
-
-  const buckets = useMemo(() => {
-    if (
-      Array.isArray(freshData?.setupBuckets)
-    ) {
-      return freshData.setupBuckets;
-    }
-
-    if (Array.isArray(freshData?.buckets)) {
-      return freshData.buckets;
-    }
-
-    if (
-      Array.isArray(
-        freshData?.settings?.setup
-      )
-    ) {
-      return freshData.settings.setup;
-    }
-
-    if (Array.isArray(freshData?.setup)) {
-      return freshData.setup;
-    }
-
-    return [];
+  const transactions = useMemo(() => {
+    return getTransactions(freshData);
   }, [freshData, refreshKey]);
 
-  const {
-    balances,
-    historyMap,
-  } = useMemo(() => {
+  const buckets = useMemo(() => {
+    return normalizeBuckets(freshData);
+  }, [freshData, refreshKey]);
+
+  const balances = useMemo(() => {
     return calculateBalances(transactions);
   }, [transactions]);
 
-  const totalMoney = useMemo(() => {
-    return buckets.reduce(
-      (total, bucket) => {
-        return (
-          total +
-          Number(
-            balances?.[bucket.name]
-              ?.total || 0
-          )
-        );
-      },
-      0
-    );
+  const displayBuckets = useMemo(() => {
+    return buckets.map((bucket) => applyBillsExtraLogic(bucket, balances));
   }, [buckets, balances]);
 
-  function toggleBucket(bucketId) {
-    setExpandedBuckets((current) => ({
-      ...current,
-      [bucketId]:
-        !current[bucketId],
-    }));
-  }
+  const rows = useMemo(() => {
+    const bucketRows = displayBuckets.flatMap((bucket) => {
+      const subRows = bucket.subBuckets.map((subBucket) => ({
+        section: "",
+        item: subBucket.name,
+        amount: Number(subBucket.displayAmount || 0),
+        type: "sub",
+      }));
 
-  function toggleHistory(key) {
-    setExpandedHistory((current) =>
-      current === key ? "" : key
+      return [
+        {
+          section: bucket.name.toUpperCase(),
+          item: `${bucket.name} Total`,
+          amount: Number(bucket.total || 0),
+          type: "bucket",
+        },
+        ...subRows,
+      ];
+    });
+
+    const totalMoney = displayBuckets.reduce(
+      (sum, bucket) => sum + Number(bucket.total || 0),
+      0
     );
-  }
+
+    return [
+      {
+        section: "TOTAL",
+        item: "Total Money",
+        amount: totalMoney,
+        type: "total",
+      },
+      ...bucketRows,
+    ];
+  }, [displayBuckets]);
 
   return (
     <div className="dashboard-page">
       <header className="header">
-        <Link
-          to="/"
-          className="home-button"
-        >
+        <Link to="/" className="home-button">
           Home
         </Link>
 
         <div>
           <h1>Balances</h1>
-
-          <p>
-            Live calculated balances
-          </p>
+          <p>Live calculated balances</p>
         </div>
       </header>
 
-      <section className="top-card">
-        <span>Total Money</span>
+      <main className="sheet-card">
+        <div className="sheet-header">
+          <div>SECTION</div>
+          <div>ITEM</div>
+          <div>AMOUNT</div>
+        </div>
 
-        <strong
-          className={
-            totalMoney < 0
-              ? "negative"
-              : ""
-          }
-        >
-          {formatCurrency(totalMoney)}
-        </strong>
-
-        <p>
-          Transactions are the source
-          of truth
-        </p>
-      </section>
-
-      <main className="bucket-list">
-        {buckets.map((bucket) => {
-          const bucketBalance =
-            balances?.[bucket.name] || {
-              total: 0,
-              subBuckets: {},
-            };
-
-          const expanded =
-            expandedBuckets[
-              bucket.id
-            ];
-
-          return (
-            <section
-              key={bucket.id}
-              className="bucket-card"
+        <div className="sheet-body">
+          {rows.map((row, index) => (
+            <div
+              key={`${row.section}-${row.item}-${index}`}
+              className={`sheet-row ${row.type}`}
             >
-              <button
-                type="button"
-                className="bucket-header"
-                onClick={() =>
-                  toggleBucket(
-                    bucket.id
-                  )
-                }
-              >
-                <div>
-                  <h2>{bucket.name}</h2>
+              <div className="section-cell">{row.section}</div>
 
-                  <p>
-                    {
-                      bucket.subBuckets
-                        .length
-                    }{" "}
-                    sub-buckets
-                  </p>
-                </div>
+              <div className="item-cell">{row.item}</div>
 
-                <strong
-                  className={
-                    bucketBalance.total <
-                    0
-                      ? "negative"
-                      : ""
-                  }
-                >
-                  {formatCurrency(
-                    bucketBalance.total
-                  )}
-                </strong>
-              </button>
-
-              {expanded && (
-                <div className="subbucket-list">
-                  {bucket.subBuckets.map(
-                    (subBucket) => {
-                      const amount =
-                        Number(
-                          bucketBalance
-                            ?.subBuckets?.[
-                            subBucket.name
-                          ] || 0
-                        );
-
-                      const targetAmount =
-                        Number(
-                          subBucket.monthlyTarget ??
-                            subBucket.targetAmount ??
-                            0
-                        );
-
-                      const fundedPercent =
-                        getFundedPercent(
-                          amount,
-                          targetAmount
-                        );
-
-                      const status =
-                        getStatusColor(
-                          amount,
-                          fundedPercent
-                        );
-
-                      const historyKey = `${bucket.name}:::${subBucket.name}`;
-
-                      const history =
-                        historyMap[
-                          historyKey
-                        ] || [];
-
-                      const historyExpanded =
-                        expandedHistory ===
-                        historyKey;
-
-                      return (
-                        <article
-                          key={
-                            subBucket.id
-                          }
-                          className="subbucket-card"
-                        >
-                          <button
-                            type="button"
-                            className="subbucket-button"
-                            onClick={() =>
-                              toggleHistory(
-                                historyKey
-                              )
-                            }
-                          >
-                            <div className="subbucket-top">
-                              <div>
-                                <h3>
-                                  {
-                                    subBucket.name
-                                  }
-                                </h3>
-
-                                <p>
-                                  {fundedPercent}
-                                  % funded
-                                </p>
-                              </div>
-
-                              <div className="subbucket-right">
-                                <strong
-                                  className={
-                                    amount <
-                                    0
-                                      ? "negative"
-                                      : ""
-                                  }
-                                >
-                                  {formatCurrency(
-                                    amount
-                                  )}
-                                </strong>
-
-                                <span
-                                  className={`status ${status}`}
-                                >
-                                  Available
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="progress-bar">
-                              <div
-                                className={`progress-fill ${status}`}
-                                style={{
-                                  width: `${Math.min(
-                                    fundedPercent,
-                                    100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          </button>
-
-                          {historyExpanded && (
-                            <div className="history-panel">
-                              {history.length ===
-                              0 ? (
-                                <p className="empty">
-                                  No history
-                                </p>
-                              ) : (
-                                history.map(
-                                  (
-                                    item,
-                                    index
-                                  ) => (
-                                    <div
-                                      key={`${historyKey}-${index}`}
-                                      className="history-row"
-                                    >
-                                      <div>
-                                        <strong>
-                                          {
-                                            item.type
-                                          }
-                                        </strong>
-
-                                        <span>
-                                          {item.date ||
-                                            "No date"}
-                                        </span>
-                                      </div>
-
-                                      <strong
-                                        className={
-                                          item.amount <
-                                          0
-                                            ? "negative"
-                                            : "positive"
-                                        }
-                                      >
-                                        {formatCurrency(
-                                          item.amount
-                                        )}
-                                      </strong>
-                                    </div>
-                                  )
-                                )
-                              )}
-                            </div>
-                          )}
-                        </article>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-            </section>
-          );
-        })}
+              <div className={row.amount < 0 ? "amount negative" : "amount"}>
+                {formatCurrency(row.amount)}
+              </div>
+            </div>
+          ))}
+        </div>
       </main>
 
       <style>{`
@@ -616,123 +387,82 @@ export default function Dashboard() {
           font-weight: 700;
         }
 
-        .top-card {
-          background: #111827;
-          color: white;
-          border-radius: 24px;
-          padding: 20px;
-          margin-bottom: 18px;
-        }
-
-        .bucket-list {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-
-        .bucket-card {
-          background: white;
-          border-radius: 22px;
-          overflow: hidden;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .bucket-header {
-          width: 100%;
-          border: 0;
-          background: white;
-          padding: 18px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          text-align: left;
-          cursor: pointer;
-        }
-
-        .subbucket-list {
-          background: #f8fafc;
-          padding: 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .subbucket-card {
+        .sheet-card {
           background: white;
           border-radius: 18px;
           overflow: hidden;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
           border: 1px solid #e5e7eb;
         }
 
-        .subbucket-button {
-          width: 100%;
-          border: 0;
-          background: transparent;
-          padding: 14px;
-          text-align: left;
-          cursor: pointer;
-        }
-
-        .subbucket-top {
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .status {
-          display: inline-flex;
+        .sheet-header,
+        .sheet-row {
+          display: grid;
+          grid-template-columns: 1fr 1.5fr 1fr;
           align-items: center;
-          justify-content: center;
-          min-height: 24px;
-          padding: 0 8px;
-          border-radius: 999px;
-          font-size: 11px;
-          font-weight: 700;
         }
 
-        .green {
-          background: #dcfce7;
-          color: #166534;
+        .sheet-header {
+          background: #111827;
+          color: white;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
         }
 
-        .yellow {
-          background: #fef3c7;
-          color: #92400e;
+        .sheet-header div {
+          padding: 12px;
         }
 
-        .red {
-          background: #fee2e2;
-          color: #991b1b;
+        .sheet-row {
+          border-bottom: 1px solid #e5e7eb;
         }
 
-        .progress-bar {
-          height: 10px;
-          background: #e5e7eb;
-          border-radius: 999px;
-          overflow: hidden;
-          margin-top: 12px;
+        .sheet-row:last-child {
+          border-bottom: 0;
         }
 
-        .progress-fill {
-          height: 100%;
+        .sheet-row div {
+          padding: 14px 12px;
+          min-width: 0;
         }
 
-        .history-panel {
-          border-top: 1px solid #e5e7eb;
-          padding: 14px;
+        .sheet-row.total {
+          background: #f9fafb;
+          font-weight: 900;
+          font-size: 17px;
+        }
+
+        .sheet-row.bucket {
+          background: #f3f4f6;
+          font-weight: 800;
+        }
+
+        .sheet-row.sub {
           background: white;
         }
 
-        .history-row {
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          padding-bottom: 10px;
-          margin-bottom: 10px;
-          border-bottom: 1px solid #f3f4f6;
+        .section-cell {
+          font-size: 12px;
+          font-weight: 900;
+          color: #374151;
+          letter-spacing: 0.04em;
         }
 
-        .positive {
+        .item-cell {
+          font-weight: 700;
+          overflow-wrap: anywhere;
+        }
+
+        .sheet-row.sub .item-cell {
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .amount {
+          text-align: right;
+          font-weight: 900;
+          white-space: nowrap;
           color: #166534;
         }
 
@@ -740,10 +470,37 @@ export default function Dashboard() {
           color: #dc2626;
         }
 
-        .empty {
-          margin: 0;
-          color: #6b7280;
-          font-size: 14px;
+        @media (max-width: 520px) {
+          .dashboard-page {
+            padding: 12px;
+          }
+
+          .header h1 {
+            font-size: 26px;
+          }
+
+          .sheet-header,
+          .sheet-row {
+            grid-template-columns: 0.8fr 1.3fr 1fr;
+          }
+
+          .sheet-header div {
+            padding: 10px 8px;
+            font-size: 10px;
+          }
+
+          .sheet-row div {
+            padding: 12px 8px;
+            font-size: 13px;
+          }
+
+          .sheet-row.total {
+            font-size: 14px;
+          }
+
+          .amount {
+            font-size: 13px;
+          }
         }
       `}</style>
     </div>
