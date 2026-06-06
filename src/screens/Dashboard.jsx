@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { watchFamilyTransactions } from "../firebase/transactionService";
+import { watchFamilySetup } from "../firebase/setupService";
 
 const STORAGE_KEY = "family_finance_app_data";
 
@@ -15,6 +17,11 @@ function loadDashboardData() {
   } catch {
     return {};
   }
+}
+
+function saveDashboardData(nextData) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+  window.dispatchEvent(new Event("app-data-updated"));
 }
 
 function formatCurrency(value) {
@@ -116,7 +123,10 @@ function calculateTransactionBalances(transactions) {
     }
 
     if (transaction.type === "Deposit") {
-      if (Array.isArray(transaction.allocations)) {
+      if (
+        Array.isArray(transaction.allocations) &&
+        transaction.allocations.length > 0
+      ) {
         transaction.allocations.forEach((allocation) => {
           add(
             allocation.bucket,
@@ -161,10 +171,6 @@ function getTotalMoney(buckets, balances) {
   }, 0);
 }
 
-function hasTarget(subBucket) {
-  return Number(subBucket.monthlyTarget || 0) > 0;
-}
-
 function BottomNav() {
   return (
     <nav className="bottom-nav">
@@ -186,6 +192,49 @@ export default function Dashboard() {
 
     refresh();
 
+    const familyId = localStorage.getItem("familyId");
+
+    let unsubscribeTransactions = null;
+    let unsubscribeSetup = null;
+
+    if (familyId) {
+      unsubscribeTransactions = watchFamilyTransactions(
+        familyId,
+        (transactions) => {
+          const currentData = loadDashboardData();
+
+          const nextData = {
+            ...currentData,
+            transactions,
+          };
+
+          saveDashboardData(nextData);
+          refresh();
+        }
+      );
+
+      unsubscribeSetup = watchFamilySetup(familyId, (familySetup) => {
+        const currentData = loadDashboardData();
+
+        const setupBuckets = Array.isArray(familySetup?.setupBuckets)
+          ? familySetup.setupBuckets
+          : [];
+
+        const buckets = Array.isArray(familySetup?.buckets)
+          ? familySetup.buckets
+          : setupBuckets;
+
+        const nextData = {
+          ...currentData,
+          setupBuckets,
+          buckets,
+        };
+
+        saveDashboardData(nextData);
+        refresh();
+      });
+    }
+
     window.addEventListener("focus", refresh);
     window.addEventListener("pageshow", refresh);
     window.addEventListener("storage", refresh);
@@ -196,6 +245,14 @@ export default function Dashboard() {
       window.removeEventListener("pageshow", refresh);
       window.removeEventListener("storage", refresh);
       window.removeEventListener("app-data-updated", refresh);
+
+      if (unsubscribeTransactions) {
+        unsubscribeTransactions();
+      }
+
+      if (unsubscribeSetup) {
+        unsubscribeSetup();
+      }
     };
   }, []);
 
