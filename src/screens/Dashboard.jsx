@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { loadData } from "../services/storage";
+
+const STORAGE_KEY = "family_finance_app_data";
+
+function loadDashboardData() {
+  try {
+    const rawData = localStorage.getItem(STORAGE_KEY);
+
+    if (!rawData) {
+      return {};
+    }
+
+    return JSON.parse(rawData) || {};
+  } catch {
+    return {};
+  }
+}
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("en-CA", {
@@ -17,36 +32,18 @@ function formatPercent(value) {
   return `${number}%`;
 }
 
-function formatTarget(value) {
-  const number = Number(value || 0);
-
-  if (!number) return "";
-
-  return formatCurrency(number);
-}
-
-function isAtTarget(amount, target) {
-  return Number(target || 0) > 0 && Number(amount || 0) >= Number(target || 0);
+function getSetup(data) {
+  if (Array.isArray(data?.setupBuckets)) return data.setupBuckets;
+  if (Array.isArray(data?.buckets)) return data.buckets;
+  return [];
 }
 
 function getTransactions(data) {
   return Array.isArray(data?.transactions) ? data.transactions : [];
 }
 
-function getSetup(data) {
-  if (Array.isArray(data?.setupBuckets)) return data.setupBuckets;
-  if (Array.isArray(data?.buckets)) return data.buckets;
-  if (Array.isArray(data?.settings?.setup)) return data.settings.setup;
-  if (Array.isArray(data?.setup)) return data.setup;
-  return [];
-}
-
 function getSubBuckets(bucket) {
-  if (Array.isArray(bucket?.subBuckets)) return bucket.subBuckets;
-  if (Array.isArray(bucket?.subcategories)) return bucket.subcategories;
-  if (Array.isArray(bucket?.children)) return bucket.children;
-  if (Array.isArray(bucket?.items)) return bucket.items;
-  return [];
+  return Array.isArray(bucket?.subBuckets) ? bucket.subBuckets : [];
 }
 
 function isActive(item) {
@@ -66,14 +63,12 @@ function normalizeBuckets(data) {
           id: subBucket.id || subBucket.name,
           name: subBucket.name || "",
           percent: Number(subBucket.percent || 0),
-          targetAmount: Number(
-            subBucket.monthlyTarget ?? subBucket.targetAmount ?? 0
-          ),
+          monthlyTarget: Number(subBucket.monthlyTarget || 0),
         })),
     }));
 }
 
-function calculateBalances(transactions) {
+function calculateTransactionBalances(transactions) {
   const balances = {};
 
   function ensure(bucketName, subBucketName) {
@@ -81,7 +76,6 @@ function calculateBalances(transactions) {
 
     if (!balances[bucketName]) {
       balances[bucketName] = {
-        total: 0,
         subBuckets: {},
       };
     }
@@ -95,17 +89,13 @@ function calculateBalances(transactions) {
   }
 
   function add(bucketName, subBucketName, amount) {
-    if (!bucketName) return;
+    if (!bucketName || !subBucketName) return;
 
     const value = Number(amount || 0);
 
     ensure(bucketName, subBucketName);
 
-    if (subBucketName) {
-      balances[bucketName].subBuckets[subBucketName] += value;
-    } else {
-      balances[bucketName].total += value;
-    }
+    balances[bucketName].subBuckets[subBucketName] += value;
   }
 
   transactions.forEach((transaction) => {
@@ -117,7 +107,7 @@ function calculateBalances(transactions) {
           add(
             allocation.bucket,
             allocation.subBucket,
-            Math.abs(Number(allocation.amount || 0))
+            Number(allocation.amount || 0)
           );
         });
       }
@@ -131,11 +121,11 @@ function calculateBalances(transactions) {
           add(
             allocation.bucket,
             allocation.subBucket,
-            Math.abs(Number(allocation.amount || 0))
+            Number(allocation.amount || 0)
           );
         });
       } else {
-        add(transaction.bucket, transaction.subBucket, Math.abs(amount));
+        add(transaction.bucket, transaction.subBucket, amount);
       }
 
       return;
@@ -152,47 +142,27 @@ function calculateBalances(transactions) {
     }
   });
 
-  Object.keys(balances).forEach((bucketName) => {
-    const subBucketTotal = Object.values(
-      balances[bucketName].subBuckets
-    ).reduce((sum, value) => sum + Number(value || 0), 0);
-
-    balances[bucketName].total += subBucketTotal;
-  });
-
   return balances;
 }
 
-function getBucketAmount(bucket, balances) {
-  if (!bucket.subBuckets.length) {
-    return Number(balances?.[bucket.name]?.total || 0);
-  }
-
-  return bucket.subBuckets.reduce((sum, subBucket) => {
-    return (
-      sum +
-      Number(balances?.[bucket.name]?.subBuckets?.[subBucket.name] || 0)
-    );
-  }, 0);
-}
-
-function getSubBucketAmount(bucket, subBucket, balances) {
+function getSubBucketBalance(bucket, subBucket, balances) {
   return Number(balances?.[bucket.name]?.subBuckets?.[subBucket.name] || 0);
 }
 
-function getMainBucketPercentTotal(buckets) {
-  return buckets.reduce((sum, bucket) => sum + Number(bucket.percent || 0), 0);
+function getBucketBalance(bucket, balances) {
+  return bucket.subBuckets.reduce((total, subBucket) => {
+    return total + getSubBucketBalance(bucket, subBucket, balances);
+  }, 0);
 }
 
-function getSubBucketPercentTotal(bucket) {
-  return bucket.subBuckets.reduce(
-    (sum, subBucket) => sum + Number(subBucket.percent || 0),
-    0
-  );
+function getTotalMoney(buckets, balances) {
+  return buckets.reduce((total, bucket) => {
+    return total + getBucketBalance(bucket, balances);
+  }, 0);
 }
 
-function isPercentTotalValid(total) {
-  return Math.abs(Number(total || 0) - 100) < 0.01;
+function hasTarget(subBucket) {
+  return Number(subBucket.monthlyTarget || 0) > 0;
 }
 
 function BottomNav() {
@@ -211,7 +181,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     function refresh() {
-      setRefreshKey((value) => value + 1);
+      setRefreshKey((current) => current + 1);
     }
 
     refresh();
@@ -229,84 +199,69 @@ export default function Dashboard() {
     };
   }, []);
 
-  const freshData = loadData();
-
-  const transactions = useMemo(() => {
-    return getTransactions(freshData);
-  }, [freshData, refreshKey]);
+  const data = useMemo(() => {
+    return loadDashboardData();
+  }, [refreshKey]);
 
   const buckets = useMemo(() => {
-    return normalizeBuckets(freshData);
-  }, [freshData, refreshKey]);
+    return normalizeBuckets(data);
+  }, [data]);
+
+  const transactions = useMemo(() => {
+    return getTransactions(data);
+  }, [data]);
 
   const balances = useMemo(() => {
-    return calculateBalances(transactions);
+    return calculateTransactionBalances(transactions);
   }, [transactions]);
 
-  const mainBucketPercentTotal = useMemo(() => {
-    return getMainBucketPercentTotal(buckets);
-  }, [buckets]);
+  const totalMoney = useMemo(() => {
+    return getTotalMoney(buckets, balances);
+  }, [buckets, balances]);
 
   const rows = useMemo(() => {
     const bucketRows = buckets.flatMap((bucket) => {
-      const bucketAmount = getBucketAmount(bucket, balances);
+      const bucketBalance = getBucketBalance(bucket, balances);
 
-      const subRows = bucket.subBuckets.map((subBucket) => {
-        const amount = getSubBucketAmount(bucket, subBucket, balances);
-        const target = Number(subBucket.targetAmount || 0);
+      const subBucketRows = bucket.subBuckets.map((subBucket) => {
+        const amount = getSubBucketBalance(bucket, subBucket, balances);
+        const target = Number(subBucket.monthlyTarget || 0);
 
         return {
+          type: "sub",
           section: bucket.name,
           item: subBucket.name,
           percent: formatPercent(subBucket.percent),
-          target: formatTarget(target),
+          target,
           amount,
-          targetAmount: target,
-          type: "sub",
         };
       });
 
       return [
         {
+          type: "bucket",
           section: "Paycheck",
           item: bucket.name,
           percent: formatPercent(bucket.percent),
-          target: "",
-          amount: bucketAmount,
-          targetAmount: 0,
-          type: "bucket",
+          target: 0,
+          amount: bucketBalance,
         },
-        ...subRows,
+        ...subBucketRows,
       ];
     });
 
-    const totalMoney = buckets.reduce((sum, bucket) => {
-      return sum + getBucketAmount(bucket, balances);
-    }, 0);
-
     return [
       {
+        type: "total",
         section: "TOTAL",
         item: "Total Money",
         percent: "",
-        target: "",
+        target: 0,
         amount: totalMoney,
-        targetAmount: 0,
-        type: "total",
       },
       ...bucketRows,
     ];
-  }, [buckets, balances]);
-
-  const subBucketWarnings = useMemo(() => {
-    return buckets
-      .filter((bucket) => bucket.subBuckets.length > 0)
-      .map((bucket) => ({
-        bucketName: bucket.name,
-        total: getSubBucketPercentTotal(bucket),
-      }))
-      .filter((item) => !isPercentTotalValid(item.total));
-  }, [buckets]);
+  }, [buckets, balances, totalMoney]);
 
   return (
     <div className="dashboard-page">
@@ -316,22 +271,6 @@ export default function Dashboard() {
           <p>Live calculated balances</p>
         </div>
       </header>
-
-      <section className="warnings">
-        {!isPercentTotalValid(mainBucketPercentTotal) && (
-          <div className="warning">
-            Main bucket percentages must total 100%. Current total:{" "}
-            {mainBucketPercentTotal}%.
-          </div>
-        )}
-
-        {subBucketWarnings.map((warning) => (
-          <div key={warning.bucketName} className="warning">
-            Sub-bucket percentages must total 100%. {warning.bucketName} total:{" "}
-            {warning.total}%.
-          </div>
-        ))}
-      </section>
 
       <main className="sheet-card">
         <div className="sheet-header">
@@ -344,33 +283,31 @@ export default function Dashboard() {
 
         <div className="sheet-body">
           {rows.map((row, index) => {
-            const atTarget = isAtTarget(row.amount, row.targetAmount);
+            const rowHasTarget = row.type === "sub" && Number(row.target || 0) > 0;
+            const isComplete = rowHasTarget && row.amount >= row.target;
 
             return (
               <div
-                key={`${row.section}-${row.item}-${index}`}
+                key={`${row.type}-${row.section}-${row.item}-${index}`}
                 className={`sheet-row ${row.type}`}
               >
                 <div className="section-cell">{row.section}</div>
 
                 <div className="item-cell">
                   {row.item}
-                  {atTarget && <span className="checkmark">✓</span>}
+                  {isComplete && <span className="checkmark">✓</span>}
                 </div>
 
                 <div className="percent-cell">{row.percent}</div>
 
-                <div className="target-cell">{row.target}</div>
+                <div className="target-cell">
+                  {rowHasTarget ? formatCurrency(row.target) : ""}
+                </div>
 
                 <div className={row.amount < 0 ? "amount negative" : "amount"}>
-                  {row.targetAmount > 0 ? (
-                    <>
-                      {formatCurrency(row.amount)} /{" "}
-                      {formatCurrency(row.targetAmount)}
-                    </>
-                  ) : (
-                    formatCurrency(row.amount)
-                  )}
+                  {rowHasTarget
+                    ? `${formatCurrency(row.amount)} / ${formatCurrency(row.target)}`
+                    : formatCurrency(row.amount)}
                 </div>
               </div>
             );
@@ -404,23 +341,6 @@ export default function Dashboard() {
           margin: 4px 0 0;
           color: #6b7280;
           font-size: 14px;
-        }
-
-        .warnings {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-
-        .warning {
-          background: #fef3c7;
-          color: #92400e;
-          border: 1px solid #fde68a;
-          border-radius: 12px;
-          padding: 10px 12px;
-          font-size: 13px;
-          font-weight: 700;
         }
 
         .sheet-card {
