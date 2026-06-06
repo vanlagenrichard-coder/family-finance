@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { loadData, saveData, updateData } from "../services/storage";
+
+const STORAGE_KEY = "family_finance_app_data";
 
 const DEFAULT_SETUP_BUCKETS = [
   { id: "bills", name: "Bills", subBuckets: [] },
@@ -11,6 +12,18 @@ const DEFAULT_SETUP_BUCKETS = [
 ];
 
 const TRANSACTION_TYPES = ["Paycheck", "Deposit", "Expense", "Transfer"];
+
+function readStoredData() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredData(nextData) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+}
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10);
@@ -222,17 +235,15 @@ function History() {
   }, [data]);
 
   useEffect(() => {
-    const loadedData = loadData();
-    const normalizedData = {
-      ...loadedData,
-      transactions: normalizeTransactions(loadedData),
-    };
+    const currentData = readStoredData();
+    const buckets = normalizeBuckets(currentData);
 
-    const buckets = normalizeBuckets(normalizedData);
+    setData({
+      ...currentData,
+      transactions: normalizeTransactions(currentData),
+    });
 
-    setData(normalizedData);
     setNewRow(createEmptyForm(buckets));
-    saveData(normalizedData);
   }, []);
 
   useEffect(() => {
@@ -339,8 +350,9 @@ function History() {
   }
 
   function getCurrentBalances(excludeTransactionId = "") {
+    const currentData = readStoredData();
     const balances = {};
-    const currentTransactions = normalizeTransactions(data).filter(
+    const currentTransactions = normalizeTransactions(currentData).filter(
       (transaction) => transaction.id !== excludeTransactionId
     );
 
@@ -471,20 +483,22 @@ function History() {
   }
 
   function buildPaycheckAllocations(amount, excludeTransactionId = "") {
+    const currentData = readStoredData();
+    const currentBuckets = normalizeBuckets(currentData);
     const allocations = [];
 
-    if (!activeBuckets.length) return allocations;
+    if (!currentBuckets.length) return allocations;
 
-    const bucketPercentTotal = activeBuckets.reduce(
+    const bucketPercentTotal = currentBuckets.reduce(
       (total, bucket) => total + Number(bucket.percent || 0),
       0
     );
 
-    activeBuckets.forEach((bucket) => {
+    currentBuckets.forEach((bucket) => {
       const bucketPercent =
         bucketPercentTotal > 0
           ? Number(bucket.percent || 0)
-          : 100 / activeBuckets.length;
+          : 100 / currentBuckets.length;
 
       const bucketAmount = money(amount * (bucketPercent / 100));
 
@@ -532,7 +546,9 @@ function History() {
   }
 
   function buildDepositAllocations(amount, bucketName, excludeTransactionId = "") {
-    const bucket = activeBuckets.find((item) => item.name === bucketName);
+    const currentData = readStoredData();
+    const currentBuckets = normalizeBuckets(currentData);
+    const bucket = currentBuckets.find((item) => item.name === bucketName);
     const subBuckets = bucket?.subBuckets || [];
 
     if (!bucket || subBuckets.length === 0) return [];
@@ -661,10 +677,14 @@ function History() {
   }
 
   function saveTransactions(nextTransactions) {
-    const nextData = updateData((currentData) => ({
+    const currentData = readStoredData();
+
+    const nextData = {
       ...currentData,
       transactions: nextTransactions,
-    }));
+    };
+
+    writeStoredData(nextData);
 
     setData({
       ...nextData,
@@ -673,27 +693,30 @@ function History() {
   }
 
   function addTransaction() {
-    if (!data) return;
-
+    const currentData = readStoredData();
     const transaction = buildTransaction(newRow);
+
     if (!transaction) return;
 
-    const currentTransactions = normalizeTransactions(data);
+    const currentTransactions = normalizeTransactions(currentData);
     saveTransactions([transaction, ...currentTransactions]);
-    setNewRow(createEmptyForm(activeBuckets));
+    setNewRow(createEmptyForm(normalizeBuckets(currentData)));
   }
 
   function saveEditedTransaction(transactionId) {
-    if (!data) return;
+    const currentData = readStoredData();
+    const currentTransactions = normalizeTransactions(currentData);
+    const originalTransaction = currentTransactions.find(
+      (item) => item.id === transactionId
+    );
 
-    const originalTransaction = transactions.find((item) => item.id === transactionId);
     if (!originalTransaction) return;
 
     const row = draftRows[transactionId] || originalTransaction;
     const transaction = buildTransaction(row, originalTransaction);
+
     if (!transaction) return;
 
-    const currentTransactions = normalizeTransactions(data);
     const nextTransactions = currentTransactions.map((item) =>
       item.id === transactionId ? transaction : item
     );
@@ -709,9 +732,9 @@ function History() {
 
   function deleteTransaction(id) {
     if (!window.confirm("Delete this transaction?")) return;
-    if (!data) return;
 
-    const nextTransactions = normalizeTransactions(data).filter(
+    const currentData = readStoredData();
+    const nextTransactions = normalizeTransactions(currentData).filter(
       (transaction) => transaction.id !== id
     );
 
