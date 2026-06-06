@@ -1,4 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  loadFamilySetup,
+  saveFamilySetup,
+  watchFamilySetup,
+} from "../firebase/setupService";
 
 const STORAGE_KEY = "family_finance_app_data";
 
@@ -68,6 +73,15 @@ function readStoredData() {
   }
 }
 
+function writeStoredData(nextData) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+  window.dispatchEvent(new Event("app-data-updated"));
+}
+
+function getFamilyId() {
+  return localStorage.getItem("familyId");
+}
+
 function normalizeBuckets(rawBuckets) {
   const source =
     Array.isArray(rawBuckets) && rawBuckets.length > 0
@@ -107,11 +121,91 @@ function isTotalValid(value) {
 
 export default function Settings() {
   const [buckets, setBuckets] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("");
 
   useEffect(() => {
-    const savedData = readStoredData();
-    const savedBuckets = savedData.setupBuckets || savedData.buckets || defaultSetupBuckets;
-    setBuckets(normalizeBuckets(savedBuckets));
+    const familyId = getFamilyId();
+
+    async function loadInitialData() {
+      const savedData = readStoredData();
+      const localBuckets =
+        savedData.setupBuckets || savedData.buckets || defaultSetupBuckets;
+
+      if (!familyId) {
+        setBuckets(normalizeBuckets(localBuckets));
+        setSyncStatus("Using local storage");
+        return;
+      }
+
+      try {
+        const familySetup = await loadFamilySetup(familyId);
+        const firestoreBuckets =
+          familySetup.setupBuckets?.length > 0
+            ? familySetup.setupBuckets
+            : familySetup.buckets;
+
+        if (firestoreBuckets?.length > 0) {
+          const normalized = normalizeBuckets(firestoreBuckets);
+
+          setBuckets(normalized);
+
+          writeStoredData({
+            ...savedData,
+            setupBuckets: normalized,
+            buckets: normalized,
+          });
+
+          setSyncStatus("Synced with Firebase");
+        } else {
+          const normalized = normalizeBuckets(localBuckets);
+
+          setBuckets(normalized);
+
+          await saveFamilySetup(familyId, normalized);
+
+          writeStoredData({
+            ...savedData,
+            setupBuckets: normalized,
+            buckets: normalized,
+          });
+
+          setSyncStatus("Imported setup to Firebase");
+        }
+      } catch (err) {
+        console.error(err);
+        setBuckets(normalizeBuckets(localBuckets));
+        setSyncStatus("Firebase unavailable, using local backup");
+      }
+    }
+
+    loadInitialData();
+
+    if (!familyId) return undefined;
+
+    const unsubscribe = watchFamilySetup(familyId, (familySetup) => {
+      const nextBuckets =
+        familySetup.setupBuckets?.length > 0
+          ? familySetup.setupBuckets
+          : familySetup.buckets;
+
+      if (!nextBuckets?.length) return;
+
+      const normalized = normalizeBuckets(nextBuckets);
+      const savedData = readStoredData();
+
+      setBuckets(normalized);
+
+      writeStoredData({
+        ...savedData,
+        setupBuckets: normalized,
+        buckets: normalized,
+      });
+
+      setSyncStatus("Synced with Firebase");
+    });
+
+    return unsubscribe;
   }, []);
 
   const activeBuckets = useMemo(
@@ -124,7 +218,7 @@ export default function Settings() {
     0
   );
 
-  const saveBuckets = (nextBuckets) => {
+  const saveBuckets = async (nextBuckets) => {
     const existingData = readStoredData();
 
     const nextData = {
@@ -133,8 +227,29 @@ export default function Settings() {
       buckets: nextBuckets,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+    writeStoredData(nextData);
     setBuckets(nextBuckets);
+
+    const familyId = getFamilyId();
+
+    if (!familyId) {
+      setSyncStatus("Saved locally");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSyncStatus("Saving...");
+
+      await saveFamilySetup(familyId, nextBuckets);
+
+      setSyncStatus("Saved to Firebase");
+    } catch (err) {
+      console.error(err);
+      setSyncStatus("Saved locally, Firebase save failed");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateBucket = (bucketId, field, value) => {
@@ -278,6 +393,17 @@ export default function Settings() {
           padding: 16px 16px 96px;
           box-sizing: border-box;
           flex: 1;
+        }
+
+        .sync-status {
+          margin: 0 0 10px;
+          font-size: 13px;
+          font-weight: 800;
+          color: #087c30;
+        }
+
+        .sync-status.saving {
+          color: #9a6200;
         }
 
         .sheet-card {
@@ -531,6 +657,10 @@ export default function Settings() {
       </header>
 
       <main className="setup-content">
+        <p className={`sync-status ${isSaving ? "saving" : ""}`}>
+          {syncStatus}
+        </p>
+
         <div className="sheet-card">
           <div className="table-scroll">
             <table className="setup-table">
